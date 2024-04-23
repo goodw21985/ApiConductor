@@ -1,0 +1,37 @@
+# Visual Studio temporary files
+.vs/
+
+# Compiled files
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.sln.docstates
+
+# NuGet packages
+packages/
+
+# Resharper files
+_resharper/
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# macOS file
+.DS_Store
+
+# Build results
+[Tt]est[Rr]esult*/
+[Bb]uild/
+
+# Rider files
+.idea/
+
+# Log files
+*.log
+
+# Visual Studio Code files
+.vscode/
