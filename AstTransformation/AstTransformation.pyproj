@@ -1,0 +1,59 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>346a99d3-62ae-4bde-8cd6-681338c2ab9a</ProjectGuid>
+    <ProjectHome>.</ProjectHome>
+    <StartupFile>AstTransformation.py</StartupFile>
+    <SearchPath>
+    </SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <Name>AstTransformation</Name>
+    <RootNamespace>AstTransformation</RootNamespace>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="AstTransformation.py" />
+    <Compile Include="ast_transform\astor\codegen.py" />
+    <Compile Include="ast_transform\astor\code_gen.py" />
+    <Compile Include="ast_transform\astor\file_util.py" />
+    <Compile Include="ast_transform\astor\node_util.py" />
+    <Compile Include="ast_transform\astor\op_util.py" />
+    <Compile Include="ast_transform\astor\rtrip.py" />
+    <Compile Include="ast_transform\astor\source_repr.py" />
+    <Compile Include="ast_transform\astor\string_repr.py" />
+    <Compile Include="ast_transform\astor\tree_walk.py" />
+    <Compile Include="ast_transform\astor\__init__.py" />
+    <Compile Include="ast_transform\dispatch.py" />
+    <Compile Include="ast_transform\module2.py" />
+    <Compile Include="ast_transform\transform.py" />
+    <Compile Include="ast_transform\variables.py" />
+    <Compile Include="ast_transform\Util.py" />
+    <Compile Include="ast_transform\__init__.py" />
+    <Compile Include="examples\client_library.py" />
+    <Compile Include="examples\saftey.py" />
+    <Compile Include="__init__.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="ast_transform\" />
+    <Folder Include="ast_transform\astor\" />
+    <Folder Include="examples\" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+  <!-- Uncomment the CoreCompile target to enable the Build command in
+       Visual Studio and specify your pre- and post-build commands in
+       the BeforeBuild and AfterBuild targets below. -->
+  <!--<Target Name="CoreCompile" />-->
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+</Project>

@@ -1,37 +1,45 @@
-# Visual Studio temporary files
-.vs/
+# Ignore Python bytecode files
+*.pyc
 
-# Compiled files
+# Ignore Python virtual environment directories
+venv/
+env/
+/.venv/
+*.env/
+
+# Ignore Visual Studio files
+.vs/
+*.suo
+*.user
+*.sln.docstates
+*.dll
 bin/
 obj/
-
-# User-specific files
-*.user
-*.suo
-*.sln.docstates
-
-# NuGet packages
-packages/
-
-# Resharper files
-_resharper/
-
-# Windows image file caches
-Thumbs.db
-ehthumbs.db
-
-# macOS file
-.DS_Store
-
-# Build results
-[Tt]est[Rr]esult*/
-[Bb]uild/
-
-# Rider files
-.idea/
-
-# Log files
+*.exe
+*.pdb
+*.userprefs
 *.log
+*.vspscc
+*.vssscc
+*.pidb
+*.ide
+*.aps
+*.app
+*.pch
+*.vspscc
+*.vssscc
 
-# Visual Studio Code files
+# Ignore ReSharper files
+_ReSharper*/
+
+# Ignore NuGet packages
+packages/
+*.nupkg
+
+# Ignore Visual Studio Code files
 .vscode/
+
+# Ignore any other build files or temporary files
+*~
+*.bak
+*.swp
