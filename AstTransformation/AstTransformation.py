@@ -1,11 +1,11 @@
 from re import X
 from ast_transform import Util
-from ast_transform import module2
 from ast_transform import astor
 from ast_transform import transform
-from ast_transform import variables
+from ast_transform import variables_analyzer
 import ast
 import io
+
 
 # Example usage:
 # Example usage
@@ -59,7 +59,7 @@ def walk(t, pre=""):
                     print(f"{pre}| {x} {Nodes(y)}")
 
 tree = ast.parse(source_code)
-t= variables.Scan(tree)
+t= variables_analyzer.Scan(tree)
 walk(t)
 
 with open('examples/client_library.py', 'r') as file:
