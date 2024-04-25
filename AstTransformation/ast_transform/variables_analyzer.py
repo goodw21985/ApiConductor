@@ -9,7 +9,7 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
         self.symbol_table_stack.append({})
         self.symbol_table = self.symbol_table_stack[-1];
         self.implicitly_async_functions = implicitly_async_functions
-        self.implicitly_async_functions_nodes =[]
+        self.critical_nodes =[]
         self.global_return_statement = None
 
 
@@ -37,7 +37,7 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
        if isinstance(node.func, ast.Name):
             if (node.func.id in self.implicitly_async_functions): 
                 if self.ConcurrencySafeContext(self.node_stack):
-                    self.implicitly_async_functions_nodes.append(node)
+                    self.critical_nodes.append(node)
        return node
     
     def visit_Lambda2(self, node):        
@@ -69,7 +69,7 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
         return node
 
     def visit_arg2(self,node):
-        if self.def_class_param_stack[-1]!=node.arg:
+        if not self.def_class_param_stack or self.def_class_param_stack[-1]!=node.arg:
             self.add_variable_reference(node.arg,scope_analyzer.SymbolTableEntry.attr_declared,self.current_node_stack)
         return node
         

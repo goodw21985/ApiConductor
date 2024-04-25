@@ -10,148 +10,146 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
         raise ValueError       
 
     def visit_arguments(self, node):
-        super().visit_arguments(node)
+        self.generic_visit(node)
         return node
     def visit_Assign(self, node):
-        super().visit_Assign(node)
+        self.visit(node.value)
         return node
     def visit_AugAssign(self, node):
-        super().visit_AugAssign(node)
+        self.generic_visit(node) #AugAssign(node)
         return node
     def visit_AnnAssign(self, node):
-        super().visit_AnnAssign(node)
+        self.generic_visit(node) #AnnAssign(node)
         return node
     def visit_ImportFrom(self, node):
-        super().visit_ImportFrom(node)
+        self.generic_visit(node) #ImportFrom(node)
         return node
     def visit_Import(self, node):
-        super().visit_Import(node)
+        self.generic_visit(node) #Import(node)
         return node
     def visit_Expr(self, node):
-        super().visit_Expr(node)
+        self.generic_visit(node) #Expr(node)
         return node
     def visit_TypeAlias(self, node):
-        super().visit_TypeAlias(node)
+        self.generic_visit(node) #TypeAlias(node)
         return node
     def visit_TypeVar(self, node):
-        super().visit_TypeVar(node)
+        self.generic_visit(node) #TypeVar(node)
         return node
     def visit_TypeVarTuple(self, node):
-        super().visit_TypeVarTuple(node)
+        self.generic_visit(node) #TypeVarTuple(node)
         return node
     def visit_ParamSpec(self, node):
-        super().visit_ParamSpec(node)
+        self.generic_visit(node) #ParamSpec(node)
         return node
     def visit_FunctionDef(self, node, is_async=False):
-        super().visit_FunctionDef(node)
+        self.generic_visit(node) #FunctionDef(node)
         return node
     def visit_AsyncFunctionDef(self, node):
-        super().visit_AsyncFunctionDef(node)
+        self.generic_visit(node) #AsyncFunctionDef(node)
         return node
     def visit_ClassDef(self, node):
-        super().visit_ClassDef(node)
+        self.generic_visit(node) #ClassDef(node)
         return node
     def visit_If(self, node):
-        super().visit_If(node)
+        self.generic_visit(node) #If(node)
         return node
     def visit_For(self, node, is_async=False):
-        super().visit_For(node)
+        self.generic_visit(node) #For(node)
         return node
     def visit_AsyncFor(self, node):
-        super().visit_AsyncFor(node)
+        self.generic_visit(node) #AsyncFor(node)
         return node
     def visit_While(self, node):
-        super().visit_While(node)
+        self.generic_visit(node) #While(node)
         return node
     def visit_With(self, node):
-        super().visit_With(node)
+        self.generic_visit(node) #With(node)
         return node
     def visit_AsyncWith(self, node):
-        super().visit_AsyncWith(node)
+        self.generic_visit(node) #AsyncWith(node)
         return node
     def visit_withitem(self, node):
-        super().visit_withitem(node)
+        self.generic_visit(node) #withitem(node)
         return node
     def visit_NameConstant(self, node):
-        super().visit_NameConstant(node)
+        self.generic_visit(node) #NameConstant(node)
         return node
     def visit_Pass(self, node):
-        super().visit_Pass(node)
+        self.generic_visit(node) #Pass(node)
         return node
     def visit_Print(self, node):
-        super().visit_Print(node)
+        self.generic_visit(node) #Print(node)
         return node
     def visit_Delete(self, node):
-        super().visit_Delete(node)
+        self.generic_visit(node) #Delete(node)
         return node
     def visit_TryExcept(self, node):
-        super().visit_TryExcept(node)
+        self.generic_visit(node) #TryExcept(node)
         return node
     def visit_Try(self, node):
-        super().visit_Try(node)
+        self.generic_visit(node) #Try(node)
         return node
     def visit_ExceptHandler(self, node):
-        super().visit_ExceptHandler(node)
+        self.generic_visit(node) #ExceptHandler(node)
         return node
     def visit_TryFinally(self, node):
-        super().visit_TryFinally(node)
+        self.generic_visit(node) #TryFinally(node)
         return node
     def visit_Exec(self, node):
-        super().visit_Exec(node)
+        self.generic_visit(node) #Exec(node)
         return node
     def visit_Assert(self, node):
-        super().visit_Assert(node)
+        self.generic_visit(node) #Assert(node)
         return node
     def visit_Global(self, node):
-        super().visit_Global(node)
         return node
     def visit_Nonlocal(self, node):
-        super().visit_Nonlocal(node)
         return node
     def visit_Return(self, node):
-        super().visit_Return(node)
+        self.generic_visit(node)
         return node
     def visit_Break(self, node):
-        super().visit_Break(node)
+        self.generic_visit(node) #Break(node)
         return node
     def visit_Continue(self, node):
-        super().visit_Continue(node)
+        self.generic_visit(node) #Continue(node)
         return node
     def visit_Raise(self, node):
-        super().visit_Raise(node)
+        self.generic_visit(node) #Raise(node)
         return node
     def visit_Match(self, node):
-        super().visit_Match(node)
+        self.generic_visit(node) #Match(node)
         return node
     def visit_match_case(self, node):
-        super().visit_match_case(node)
+        self.generic_visit(node) #match_case(node)
         return node
     def visit_MatchSequence(self, node):
-        super().visit_MatchSequence(node)
+        self.generic_visit(node) #MatchSequence(node)
         return node
     def visit_MatchValue(self, node):
-        super().visit_MatchValue(node)
+        self.generic_visit(node) #MatchValue(node)
         return node
     def visit_MatchSingleton(self, node):
-        super().visit_MatchSingleton(node)
+        self.generic_visit(node) #MatchSingleton(node)
         return node
     def visit_MatchStar(self, node):
-        super().visit_MatchStar(node)
+        self.generic_visit(node) #MatchStar(node)
         return node
     def visit_MatchMapping(self, node):
-        super().visit_MatchMapping(node)
+        self.generic_visit(node) #MatchMapping(node)
         return node
     def visit_MatchAs(self, node):
-        super().visit_MatchAs(node)
+        self.generic_visit(node) #MatchAs(node)
         return node
     def visit_MatchOr(self, node):
-        super().visit_MatchOr(node)
+        self.generic_visit(node) #MatchOr(node)
         return node
     def visit_MatchClass(self, node):
-        super().visit_MatchClass(node)
+        self.generic_visit(node) #MatchClass(node)
         return node
     def visit_Attribute(self, node):
-        super().visit_Attribute(node)
+        self.generic_visit(node) #Attribute(node)
         return node
     def visit_Call2(self, node, len=len):
         # cannot be delegate
@@ -160,110 +158,132 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
         return node
     def visit_Name2(self, node):
         s=self.current_node_lookup
+        if self.HasSingleSimpleWrite(s.symbol):
+            if len(s.symbol.write[0]) ==1:
+                return node
+
+            writeNode=s.symbol.write[0][-1]
+            readNode=s.symbol.write[0][-1]
+            if writeNode==node:
+                return node        
+
+            origin = s.symbol.write[0][-2]
+
+            if origin in self.node_stack:
+                raise ValueError("infinite recursion '"+node.id+"'")
+            self.visit(origin)
+        else:
+            s.messy=True
+        return node
+            
+        
         return node
     def visit_Constant(self, node):
-        super().visit_Constant(node)
+        self.generic_visit(node) #Constant(node)
         return node
     def visit_JoinedStr(self, node):
-        super().visit_JoinedStr(node)
+        self.generic_visit(node) #JoinedStr(node)
         return node
     def visit_Str(self, node):
-        super().visit_Str(node)
+        self.generic_visit(node) #Str(node)
         return node
     def visit_Bytes(self, node):
-        super().visit_Bytes(node)
+        self.generic_visit(node) #Bytes(node)
         return node
     def visit_Num(self, node):
-        super().visit_Num(node)
+        self.generic_visit(node)
         return node
     def visit_Tuple(self, node):
-        super().visit_Tuple(node)
+        self.generic_visit(node) #Tuple(node)
         return node
     def visit_List(self, node):
-        super().visit_List(node)
+        self.generic_visit(node) #List(node)
         return node
     def visit_Set(self, node):
-        super().visit_Set(node)
+        self.generic_visit(node) #Set(node)
         return node
     def visit_Dict(self, node):
-        super().visit_Dict(node)
+        self.generic_visit(node) #Dict(node)
         return node
     def visit_BinOp(self, node):
-        super().visit_BinOp(node)
+        self.generic_visit(node)
         return node
     def visit_BoolOp(self, node):
-        super().visit_BoolOp(node)
+        self.generic_visit(node)
         return node
     def visit_Compare(self, node):
-        super().visit_Compare(node)
+        self.generic_visit(node)
         return node
     def visit_NamedExpr(self, node):
-        super().visit_NamedExpr(node)
+        self.generic_visit(node) #NamedExpr(node)
         return node
     def visit_UnaryOp(self, node):
-        super().visit_UnaryOp(node)
+        self.generic_visit(node) #UnaryOp(node)
         return node
     def visit_Subscript(self, node):
-        super().visit_Subscript(node)
+        self.generic_visit(node) #Subscript(node)
         return node
     def visit_Slice(self, node):
-        super().visit_Slice(node)
+        self.generic_visit(node) #Slice(node)
         return node
     def visit_Index(self, node):
-        super().visit_Index(node)
+        self.generic_visit(node) #Index(node)
         return node
     def visit_ExtSlice(self, node):
-        super().visit_ExtSlice(node)
+        self.generic_visit(node) #ExtSlice(node)
         return node
     def visit_Yield(self, node):
-        super().visit_Yield(node)
+        self.generic_visit(node) #Yield(node)
         return node
     def visit_Await(self, node):
-        super().visit_Await(node)
+        self.generic_visit(node) #Await(node)
         return node
     def visit_Lambda(self, node):
-        super().visit_Lambda(node)
+        self.generic_visit(node) #Lambda(node)
         return node
     def visit_Ellipsis(self, node):
-        super().visit_Ellipsis(node)
+        self.generic_visit(node) #Ellipsis(node)
         return node
     def visit_ListComp(self, node):
-        super().visit_ListComp(node)
+        self.generic_visit(node)
         return node
     def visit_GeneratorExp(self, node):
-        super().visit_GeneratorExp(node)
+        self.generic_visit(node) #GeneratorExp(node)
         return node
     def visit_SetComp(self, node):
-        super().visit_SetComp(node)
+        self.generic_visit(node) #SetComp(node)
         return node
     def visit_DictComp(self, node):
-        super().visit_DictComp(node)
+        self.generic_visit(node) #DictComp(node)
         return node
     def visit_IfExp(self, node):
-        super().visit_IfExp(node)
+        self.generic_visit(node) #IfExp(node)
         return node
     def visit_Starred(self, node):
-        super().visit_Starred(node)
+        self.generic_visit(node) #Starred(node)
         return node
     def visit_Repr(self, node):
-        super().visit_Repr(node)
+        self.generic_visit(node) #Repr(node)
         return node
     def visit_Expression(self, node):
-        super().visit_Expression(node)
+        self.generic_visit(node) #Expression(node)
         return node
     def visit_arg(self, node):
-        super().visit_arg(node)
+        self.generic_visit(node) #arg(node)
         return node
     def visit_alias(self, node):
-        super().visit_alias(node)
+        self.generic_visit(node) #alias(node)
         return node
     def visit_comprehension(self, node):
-        super().visit_comprehension(node)
+        self.generic_visit(node)
         return node
     def visit_Module(self, node):
-        super().visit_Module(node)
+        self.generic_visit(node) #Module(node)
         return node
         
+    def HasSingleSimpleWrite(self, symbolTableEntry):
+        return len(symbolTableEntry.write)==1 and not symbolTableEntry.readwrite and not symbolTableEntry.declared and not symbolTableEntry.ambiguous
+
     def FindTerminalNodes(self):
         self.terminal_nodes=[]
         if self.global_return_statement is not None:
@@ -271,14 +291,24 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
         else:
             for symbol in self.symbol_table.keys():
                 record = self.symbol_table[symbol]
-                if "chidren" not in record and "w" in record and "r" not in record and len(record["w"])==1:
-                    self.terminal_nodes.append(record["w"][0])
+                if not record.child and record.write and not record.read and len(record.write)==1:
+                    self.terminal_nodes.append(record.write[0][-1])
         if len(self.terminal_nodes)==0:
-            for node in self.implicitly_async_functions_nodes:
-                self.terminal_nodes.append(record["w"][0])
+            for node in self.critical_nodes:
+                self.terminal_nodes.append(node)
+        for v in self.terminal_nodes:
+            if v not in self.critical_nodes:
+                self.critical_nodes.append(v)
+
+    def MarkDependencies(self, critical_node):
+        self.tracking = critical_node
+        self.visit(self.tracking)
       
 def Scan(tree, parent=None):
     analyzer = DependencyAnalyzer(parent)
     analyzer.FindTerminalNodes()
+    for critical_node in analyzer.critical_nodes:
+        analyzer.MarkDependencies(critical_node)
+    
     return analyzer
 

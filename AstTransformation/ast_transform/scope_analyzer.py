@@ -45,7 +45,7 @@ class SymbolTableEntry:
         elif (key==SymbolTableEntry.attr_ambiguous):
             return self.ambiguous
         else:
-            raise ValueError(key)
+            raise ValueError("SymbolTableEntry does not have an attribute named '"+key+"'")
 
 #
 # NodeCrossReference is a sidecar structure where additional intellengence about a node is stored without
@@ -57,7 +57,7 @@ class SymbolTableEntry:
 # accumulated so far about this node.   TODO:  is ast.node a valid key for a dictionary?        
 # 
 class NodeCrossReference:
-    def __init__(ancestors):
+    def __init__(self, ancestors):
         self.ancestors = ancestors  # the parent node stack of the current node
         self.symbol = None          # the Symbol table entry for this if node, if this node references a symbol
         self.dependency = []        # list of critical nodes that depend on this node
@@ -78,9 +78,10 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.class_symbols_stack = []
             self.def_class_param_stack = []
             self.nodelookup = {}
-            self.implicitly_async_functions_nodes = None
+            self.critical_nodes = None
             self.have_symbol_table = False
             self.global_return_statement = None
+            self.tracking=None
         else:
             self.have_symbol_table = copy.have_symbol_table
             self.global_return_statement = copy.global_return_statement
@@ -92,8 +93,9 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.isLambdaCount=0       
             self.class_symbols_stack = []
             self.def_class_param_stack = []
-            self.implicitly_async_functions_nodes = copy.implicitly_async_functions_nodes
-            self.nodelookup = {}
+            self.critical_nodes = copy.critical_nodes
+            self.nodelookup = copy.nodelookup
+            self.tracking=None
         
     def visit(self, node):
         self.node_stack.append(node)
@@ -104,6 +106,19 @@ class ScopeAnalyzer(ast.NodeTransformer):
                 self.nodelookup[node] = self.current_node_lookup
             else:
                 self.current_node_lookup = self.nodelookup[node]
+        if self.tracking:
+            if self.tracking in self.current_node_lookup.dependency:
+                # stop when we hit the same node
+                self.node_stack.pop()
+                return node
+            else:
+                self.current_node_lookup.dependency.append(self.tracking)
+            
+            if node != self.tracking and node in self.critical_nodes:
+                # stop when we see another critical node
+                self.node_stack.pop()
+                return node
+                
         ret = super().visit(node)
         self.node_stack.pop()
         return ret
@@ -154,7 +169,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
 
     def visit_arg(self,node):
         if self.have_symbol_table:
-            if self.def_class_param_stack[-1]!=node.arg:
+            if not self.def_class_param_stack or self.def_class_param_stack[-1]!=node.arg:
                 self.current_node_lookup.symbol= self.get_variable_reference(node.arg,  self.current_node_stack);        
         ret = self.visit_arg2(node)
         self.generic_visit(node)
@@ -207,7 +222,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         
     def push_symbol_table_stack(self, name):        
         if self.symbol_table_stack is not None:
-            self.symbol_table=self.symbol_table[name][self.node_children]
+            self.symbol_table=self.symbol_table[name].child
             self.symbol_table_stack.append(self.symbol_table)
         
     def pop_symbol_table_stack(self):      
@@ -282,7 +297,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
     def get_variable_reference(self, key, value):
         dictionary = self.find_frame(key)
         item = dictionary[key]
-        if (self.node_redirect in item):
+        if (item.redirect):
             sub = item[self.node_redirect]
             if key not in sub:
                 sub[key]={}
