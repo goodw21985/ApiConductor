@@ -14,7 +14,7 @@ source_code = """
 f=1
 f=2
 a=3*d+e*f
-search_email(a,b,c)
+x=search_email(a,b,c)
 """
 
 expected="""

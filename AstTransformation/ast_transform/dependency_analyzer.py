@@ -1,4 +1,5 @@
 import ast
+
 from . import Util
 from . import scope_analyzer
 
@@ -263,12 +264,21 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
         super().visit_Module(node)
         return node
         
-    def Scan(self,source):
-        self.source = source
-        self.visit(source)
+    def FindTerminalNodes(self):
+        self.terminal_nodes=[]
+        if self.global_return_statement is not None:
+            self.terminal_nodes.append(self.global_return_statement)
+        else:
+            for symbol in self.symbol_table.keys():
+                record = self.symbol_table[symbol]
+                if "chidren" not in record and "w" in record and "r" not in record and len(record["w"])==1:
+                    self.terminal_nodes.append(record["w"][0])
+        if len(self.terminal_nodes)==0:
+            for node in self.implicitly_async_functions_nodes:
+                self.terminal_nodes.append(record["w"][0])
       
 def Scan(tree, parent=None):
     analyzer = DependencyAnalyzer(parent)
-    analyzer.FindTerminalNodes
+    analyzer.FindTerminalNodes()
     return analyzer
 

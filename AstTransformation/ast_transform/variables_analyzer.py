@@ -18,16 +18,16 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
         if node.id in self.implicitly_async_functions and isinstance(node.ctx, ast.Store):
             # if a variable name is modified that has the same name as an awaitable function, remove that function  from the list
             raise ValueError(f"{node.id} is assigned, and is also the name of a protected function");
-        group = self.node_read
+        group = scope_analyzer.SymbolTableEntry.attr_read
         if not self.IgnoreSymbol(node):
             if isinstance(node.ctx, ast.Store):
                 q=self.IsAugAssign()
                 if q==True:
-                    group = self.node_read_write
+                    group = scope_analyzer.SymbolTableEntry.attr_read_write
                 elif q==False:
-                    group = self.node_write
+                    group = scope_analyzer.SymbolTableEntry.attr_write
                 else:
-                    group = self.node_ambiguous
+                    group = scope_analyzer.SymbolTableEntry.attr_ambiguous
 
             self.add_variable_reference(name, group, self.current_node_stack)
         return node
@@ -42,25 +42,25 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
     
     def visit_Lambda2(self, node):        
         for arg in node.args.args:
-            self.add_variable_reference(arg.arg,self.node_read,self.current_node_stack)
+            self.add_variable_reference(arg.arg,scope_analyzer.SymbolTableEntry.attr_read,self.current_node_stack)
         return node
             
     def visit_Attribute2(self, node):
         (name, isClass, isComplex)=self.GetVariableContext()
         if isinstance(node.ctx, ast.Load):
-            group = self.node_read
+            group = scope_analyzer.SymbolTableEntry.attr_read
         elif isinstance(node.ctx, ast.Store):
             q=self.IsAugAssign()
             if q==True:
-                group = self.node_read_write
+                group = scope_analyzer.SymbolTableEntry.attr_read_write
             elif q==False:
-                group = self.node_write
+                group = scope_analyzer.SymbolTableEntry.attr_write
             else:
-                group = self.node_ambiguous
+                group = scope_analyzer.SymbolTableEntry.attr_ambiguous
 
         if isComplex:
-            if group!=self.node_read:
-                group = self.node_ambiguous
+            if group!=scope_analyzer.SymbolTableEntry.attr_read:
+                group = scope_analyzer.SymbolTableEntry.attr_ambiguous
 
         if isClass:            
             self.add_class_variable_reference(name, group, self.current_node_stack)
@@ -70,7 +70,7 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
 
     def visit_arg2(self,node):
         if self.def_class_param_stack[-1]!=node.arg:
-            self.add_variable_reference(node.arg,self.node_declared,self.current_node_stack)
+            self.add_variable_reference(node.arg,scope_analyzer.SymbolTableEntry.attr_declared,self.current_node_stack)
         return node
         
     def visit_Global(self, node):
@@ -96,44 +96,38 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
 
     def Redirect(self, key, value):
         if key not in self.symbol_table:
-            self.symbol_table[key] = {}
+            self.symbol_table[key] = scope_analyzer.SymbolTableEntry()
         
-        self.symbol_table[key][self.node_redirect]=value
+        self.symbol_table[key].redirect=value
         if key not in value:
-            value[key]={}
-        return self.node_redirect in value
+            value[key]=scope_analyzer.SymbolTableEntry()
+        return value[key].redirect
         
     def add_variable_reference(self, key, group, value):
         dictionary = self.find_frame(key)
         if key not in dictionary:
-            dictionary[key] = {}
+            dictionary[key] = scope_analyzer.SymbolTableEntry()
         item = dictionary[key]
-        if (self.node_redirect in item):
-            sub = item[self.node_redirect]
+        while (item.redirect):
+            sub = item.redirect
             if key not in sub:
-                sub[key]={}
+                sub[key]=scope_analyzer.SymbolTableEntry()
             item=sub[key]
+            item.notLocal = True
        
-        if group not in item:
-            item[group]=[]
-        list = item[group]
-        list.append(value)
+        item[group].append(value)
 
     def add_class_variable_reference(self, key, group, value):
         dictionary = self.class_symbols_stack[-1]
         if key not in dictionary:
-            dictionary[key] = {}
-        item = dictionary[key]
-        if group not in dictionary:
-            item[group]=[]
-        list = item[group]
-        list.append(value)
+            dictionary[key] = scope_analyzer.SymbolTableEntry()
+        dictionary[key][group].append(value)
 
     def push_symbol_table_stack(self, name):
         if name not in self.symbol_table:
-            self.symbol_table[name] = {}
-        self.symbol_table[name][self.node_children] = {} 
-        self.symbol_table=self.symbol_table[name][self.node_children]
+            self.symbol_table[name] = scope_analyzer.SymbolTableEntry()
+        self.symbol_table[name].child = {}
+        self.symbol_table=self.symbol_table[name].child
         self.symbol_table_stack.append(self.symbol_table)
 
     def pop_symbol_table_stack(self):      

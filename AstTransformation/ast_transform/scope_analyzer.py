@@ -1,43 +1,72 @@
 import ast
 from multiprocessing import Value
+from pickletools import read_stringnl_noescape_pair
 from . import Util
 
+#
+# a symbol table is a dictionary with the key of the symbol and the value of SymbolTableEntry
+# 
+# the symbol table has a heirarchy reflecting a scope stack. 
+# a symbol table is a dictionary of symbols containng the properties below
+# this is heirarchical, because some symbols create a new scope (see children)
+#
+# the symbol table is build using VariablesAnalyzer.
+# as the AST is walked, the value of symbol table at any point is the current scope
+#
+# because the symbol table is heirarchical, the during parsing, the current symbol table will be 
+# from the relevance place in the heirarchy
+#
+class SymbolTableEntry:
+    attr_read = "read"              # name of the read attribute
+    attr_write = "write"            # name of the write attribute
+    attr_read_write = "readwrite"   # name of the readwrite attribute
+    attr_declared = "declared"      # name of the declared attribute
+    attr_ambiguous = "ambiguous"      # name of the declared attribute
+ 
+    def __init__(self):
+        self.read= []               # which nodes read this symbol
+        self.write=[]               # which notes write this symbol
+        self.readwrite=[]           # which notes read/write this symbol
+        self.declared=[]            # which notes declared this symbol
+        self.ambiguous=[]           # which nodes had dangerous/ambiguous access to this symbol (example, for a: a[3]=5)
+        self.child = None           # this symbol is a class, function or lambda, and has a child symbol table 
+        self.redirect = None        # this symbol has been combined with another because of global or nonlocal
+        self.notLocal = False       # true if this symbol was combined with an inner scope because of global or local
+
+    def __getitem__(self, key):
+        if (key==SymbolTableEntry.attr_read):
+            return self.read
+        elif (key==SymbolTableEntry.attr_write):
+            return self.write
+        elif (key==SymbolTableEntry.attr_read_write):
+            return self.readwrite
+        elif (key==SymbolTableEntry.attr_declared):
+            return self.declared
+        elif (key==SymbolTableEntry.attr_ambiguous):
+            return self.ambiguous
+        else:
+            raise ValueError(key)
+
+#
+# NodeCrossReference is a sidecar structure where additional intellengence about a node is stored without
+# modifying the underlying node.        
+#    
+# self.current_node_lookup contains this value for a node when the visit* is called.
+#        
+# self.nodelookup[node] will return the following class instance as additional information that has been
+# accumulated so far about this node.   TODO:  is ast.node a valid key for a dictionary?        
+# 
+class NodeCrossReference:
+    def __init__(ancestors):
+        self.ancestors = ancestors  # the parent node stack of the current node
+        self.symbol = None          # the Symbol table entry for this if node, if this node references a symbol
+        self.dependency = []        # list of critical nodes that depend on this node
+        self.messy=False            # excluded for concurrency
+        
 class ScopeAnalyzer(ast.NodeTransformer):
     # This is the base class for the llmPython AST walker, and it keeps track of symbol tables and cross references implicitly
     #
-    # the symbol table has a heirarchy reflecting a scope stack. 
-    # a symbol table is a dictionary of symbols containng the properties below
-    # this is heirarchical, because some symbols create a new scope (see children)
-    #
-    # the symbol table is build using VariablesAnalyzer.
-    # as the AST is walked, the value of symbol table at any point is the current scope
-    #
-    # lookup_symbol(key) can be used to find the symbol entry that respects scope 
-    # TODO: lookup_symbol should accept a node....  because untangling symbols in nodes is weird
-    #
-    # properties for each symbol in the symbol table
-    node_read = "r"             # this node is read in these locations
-    node_write = "w"            # this node is modified in these locations
-    node_read_write = "rw"      # this node is read and modified (i.e. +=) in these locations
-    node_declared = ":"         # this node is declared in a function or lambda at these locations (should be 1)
-    node_ambiguous = "m"        # this node has some ambiguous modification that cannot be untangled  (e.g. 1a.b[3]=2)
-    node_children = "children"  # this node is a class, function or lambda, and has a child scope
-    node_redirect = "redirect"  # this node has been redirected to another scope because of gloabal or nonlocal
     
-    #
-    # there is a node cross reference
-    # nodelookup[node]
-    #  
-    # this contains the parent node, and also the symbol (is it is a name, or attribute, etc.)
-    # nodelookup[node].parents      # parent of node
-    # nodelookup[node].symbol       # where symbol is read/written/etc
-    # nodelookup[node].dependency   # which critical nodes depend on this
-    # nodelookup[node].messy        # true if this node cannot participate in a concurrent operation
-    
-    node_parents = "parents"
-    node_symbol="symbol"
-    node_dependency="dependency"
-    node_messy="messy"
     
     def __init__(self, copy = None):
         if copy == None:
@@ -71,7 +100,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.current_node_stack = self.node_stack[:]
         if self.have_symbol_table:
             if node not in self.nodelookup:
-                self.current_node_lookup = {self.node_parents: self.current_node_stack}
+                self.current_node_lookup = NodeCrossReference(self.current_node_stack)
                 self.nodelookup[node] = self.current_node_lookup
             else:
                 self.current_node_lookup = self.nodelookup[node]
@@ -106,7 +135,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         
         if self.have_symbol_table:
             if not self.IgnoreSymbol(node):
-                self.current_node_lookup[self.node_symbol]=  self.get_variable_reference(node.id,  self.current_node_stack);
+                self.current_node_lookup.symbol=  self.get_variable_reference(node.id,  self.current_node_stack);
 
         ret = self.visit_Name2(node)
         self.generic_visit(node)
@@ -126,7 +155,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
     def visit_arg(self,node):
         if self.have_symbol_table:
             if self.def_class_param_stack[-1]!=node.arg:
-                self.current_node_lookup[self.node_symbol]=  self.get_variable_reference(node.arg,  self.current_node_stack);        
+                self.current_node_lookup.symbol= self.get_variable_reference(node.arg,  self.current_node_stack);        
         ret = self.visit_arg2(node)
         self.generic_visit(node)
         return ret
@@ -138,9 +167,9 @@ class ScopeAnalyzer(ast.NodeTransformer):
         if self.have_symbol_table is None:
             (name ,isClass, _) = self.GetVariableContext()
             if isClass:     
-                self.current_node_lookup[self.node_symbols] = self.get_class_variable_reference(name, self.current_node_stack)
+                self.current_node_lookup.symbol= self.get_class_variable_reference(name, self.current_node_stack)
             else:
-                self.current_node_lookup[self.node_symbols] = self.get_variable_reference(name, self.current_node_stack)
+                self.current_node_lookup.symbol= self.get_variable_reference(name, self.current_node_stack)
         ret = self.visit_Attribute2(node)
         self.generic_visit(node)
         return ret
@@ -160,7 +189,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.push_symbol_table_stack('lambda')
         if self.have_symbol_table:
             for arg in node.args.args:
-                self.nodelookup[node][self.node_symbol]=self.get_variable_reference(arg.arg,self.current_node_stack)
+                self.nodelookup[node].symbol=self.get_variable_reference(arg.arg,self.current_node_stack)
         ret = self.visit_Lambda2(node)
 
         self.isLambdaCount+=1
@@ -211,7 +240,6 @@ class ScopeAnalyzer(ast.NodeTransformer):
             return True
         if isinstance(node.ctx, ast.Load):
             parent = self.current_node_stack[-2]
-            group = self.node_read
             if parent and isinstance(parent, ast.FunctionDef):
                 return True
         return False
