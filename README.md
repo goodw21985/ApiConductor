@@ -15,6 +15,10 @@ Since this code will run in the cloud, we have a white list of allowed modules, 
 
 LLmPython code will be transforms into IronPython code to add functionality:
 
+## Allow for attribute syntax to be used on Dictionaries like Javascript.  
+
+This willl likely require being aware of when literal arrays and objects need to be implicitly case to a class that implements attributes this is perhaps managed by type hints knowledge of when the syntax is ambiguous
+
 ## Call backs of API functions from python to C# code in the orchestrator, with asynchronous completions
 
 i.e. SearchEmail() function should be forwarded to the orchestrator for execution

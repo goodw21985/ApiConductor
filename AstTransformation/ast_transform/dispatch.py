@@ -18,4 +18,29 @@ async def dispatch():
         tasks.remove(task)
     return not __task_list
 
-    
+# trick class to allow us to use attribute syntax on a dictionary, when 
+# it is ambiguous whehter the object is a dictionary or class
+#
+#  a.b -> DictWrapper(a).b  (through code transformation), unless we know a priori that the object is not a dictionary 
+#
+class DictWrapper:
+    def __init__(self, data):
+        self._data = data
+
+    def __getitem__(self, key):
+        if isinstance(self._data, dict):
+            return self._data[key]
+        else:
+            return getattr(self._data, key)
+
+    def __setitem__(self, key, value):
+        if isinstance(self._data, dict):
+            self._data[key] = value
+        else:
+            setattr(self._data, key, value)
+
+    def __delitem__(self, key):
+        if isinstance(self._data, dict):
+            del self._data[key]
+        else:
+            delattr(self._data, key)   
