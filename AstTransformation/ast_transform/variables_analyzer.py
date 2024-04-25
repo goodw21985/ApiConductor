@@ -3,14 +3,21 @@ from . import Util
 from . import scope_analyzer
 
 class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
-    def __init__(self, copy):
+    def __init__(self, implicitly_async_functions, copy):
         super().__init__(copy) 
         self.symbol_table_stack = []
         self.symbol_table_stack.append({})
         self.symbol_table = self.symbol_table_stack[-1];
+        self.implicitly_async_functions = implicitly_async_functions
+        self.implicitly_async_functions_nodes =[]
+        self.global_return_statement = None
+
 
     def visit_Name2(self, node):
         name = node.id
+        if node.id in self.implicitly_async_functions and isinstance(node.ctx, ast.Store):
+            # if a variable name is modified that has the same name as an awaitable function, remove that function  from the list
+            raise ValueError(f"{node.id} is assigned, and is also the name of a protected function");
         group = self.node_read
         if not self.IgnoreSymbol(node):
             if isinstance(node.ctx, ast.Store):
@@ -23,12 +30,22 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                     group = self.node_ambiguous
 
             self.add_variable_reference(name, group, self.current_node_stack)
+        return node
 
+    # looking for implicit async function usage.
+    def visit_Call2(self, node):
+       if isinstance(node.func, ast.Name):
+            if (node.func.id in self.implicitly_async_functions): 
+                if self.ConcurrencySafeContext(self.node_stack):
+                    self.implicitly_async_functions_nodes.append(node)
+       return node
+    
     def visit_Lambda2(self, node):        
         for arg in node.args.args:
             self.add_variable_reference(arg.arg,self.node_read,self.current_node_stack)
+        return node
             
-    def visit_Attribute(self, node):
+    def visit_Attribute2(self, node):
         (name, isClass, isComplex)=self.GetVariableContext()
         if isinstance(node.ctx, ast.Load):
             group = self.node_read
@@ -49,17 +66,19 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
             self.add_class_variable_reference(name, group, self.current_node_stack)
         else:
             self.add_variable_reference(name, group, self.current_node_stack)
-        self.generic_visit(node)
+        return node
 
     def visit_arg2(self,node):
         if self.def_class_param_stack[-1]!=node.arg:
             self.add_variable_reference(node.arg,self.node_declared,self.current_node_stack)
+        return node
         
     def visit_Global(self, node):
         for target in node.names:
             root=self.symbol_table_stack[0]
             self.Redirect(target, root)
         self.generic_visit(node)
+        return node
 
     def visit_Nonlocal(self, node):
         for target in node.names:
@@ -67,6 +86,13 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                 if not self.Redirect(target, ancestor):
                     break
         self.generic_visit(node)
+        return node
+
+    def visit_Return(self, node):
+        if (len(self.node_stack)==2):
+            self.global_return_statement = node    
+        self.generic_visit(node)
+        return node
 
     def Redirect(self, key, value):
         if key not in self.symbol_table:
@@ -122,8 +148,8 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                 return False
         return None
       
-def Scan(tree, parent=None):
-    analyzer = VariablesAnalyzer(parent)
+def Scan(tree, implicitly_async_functions, parent=None):
+    analyzer = VariablesAnalyzer(implicitly_async_functions, parent)
     analyzer.visit(tree)
     return analyzer
 

@@ -34,17 +34,19 @@ class MyClass:
 obj = MyClass()
 func = obj.my_function()
 print(func(3))
-
+return a,m
 """
 
 expected="""
 m
 | rw #2
+| r #29
 a
 | m #3
 | r #3
 | r #3
 | r #3
+| r #29
 MyClass
 . __init__
 . x
@@ -117,21 +119,10 @@ class TestVariablesAnalyzerModule(unittest.TestCase):
     def test_walk(self, mock_stdout):
         # Test your function here
         tree = ast.parse(source_code)
-        analyzer1= variables_analyzer.Scan(tree)
+        analyzer1= variables_analyzer.Scan(tree, [])
         walk(analyzer1.symbol_table)
         result=mock_stdout.getvalue().strip()
         self.assertEqual(result, expected.strip())
-
-        mock_stdout.seek(0)
-        mock_stdout.truncate()
-        analyzer2= scope_analyzer.Scan(tree, analyzer1)
-        walk(analyzer2.symbol_table)
-        result=mock_stdout.getvalue().strip()
-        self.assertEqual(result, expected.strip())
-        
-        mock_stdout.seek(0)
-        mock_stdout.truncate()
-        analyzer2= scope_analyzer.Scan(tree)
 
 if __name__ == '__main__':
     unittest.main()

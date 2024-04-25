@@ -1,4 +1,5 @@
 from asyncio import wait
+from asyncio import FIRST_COMPLETED
 __task_dispatch = {}
 __task_list = []
 
@@ -8,22 +9,23 @@ def AddTask(task, dispatch):
     
 async def dispatch():
     if not __task_list: return True
-    done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    done, _ = await wait(__task_list, return_when=FIRST_COMPLETED)
     # Handle completed tasks
     for task in done:
         result = task.result()
         await dispatch[task.coro](result)
 
         # Remove the completed task from the list
-        tasks.remove(task)
+        __task_list.remove(task)
     return not __task_list
 
-# trick class to allow us to use attribute syntax on a dictionary, when 
-# it is ambiguous whehter the object is a dictionary or class
+# Class to allow operators to act the way we want on json
+# like results coming back from API calls and manipulations on those objects
+# we will broadly automate this conversion in classes that are inside
+# classes maked with JObject attribute, or in LLM generated code.
+#  a.b -> J(a).b  (through code transformation), unless we know a priori that the object is not a dictionary 
 #
-#  a.b -> DictWrapper(a).b  (through code transformation), unless we know a priori that the object is not a dictionary 
-#
-class DictWrapper:
+class J:
     def __init__(self, data):
         self._data = data
 
