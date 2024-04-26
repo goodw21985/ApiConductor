@@ -157,26 +157,15 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
             self.EndPath()
         return node
     def visit_Name2(self, node):
+        if node.id=="q":
+            node=node
         s=self.current_node_lookup
-        if self.HasSingleSimpleWrite(s.symbol):
-            if len(s.symbol.write[0]) ==1:
-                return node
-
-            writeNode=s.symbol.write[0][-1]
-            readNode=s.symbol.write[0][-1]
-            if writeNode==node:
-                return node        
-
-            origin = s.symbol.write[0][-2]
-
-            if origin in self.node_stack:
-                raise ValueError("infinite recursion '"+node.id+"'")
-            self.visit(origin)
-        else:
-            s.messy=True
-        return node
-            
-        
+        for writer in s.symbol.write:
+            if len(writer)>1:
+                self.visit(writer[-2])
+        for writer in s.symbol.readwrite:
+            if len(writer)>1:
+                self.visit(writer[-2])
         return node
     def visit_Constant(self, node):
         self.generic_visit(node) #Constant(node)
@@ -303,6 +292,9 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
     def MarkDependencies(self, critical_node):
         self.tracking = critical_node
         self.visit(self.tracking)
+        
+    def CreateDependencyGraphForCriticalNodes():
+        pass
       
 def Scan(tree, parent=None):
     analyzer = DependencyAnalyzer(parent)

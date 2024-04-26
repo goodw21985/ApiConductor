@@ -58,16 +58,15 @@ class SymbolTableEntry:
 # 
 class NodeCrossReference:
     def __init__(self, ancestors):
-        self.ancestors = ancestors  # the parent node stack of the current node
-        self.symbol = None          # the Symbol table entry for this if node, if this node references a symbol
-        self.dependency = []        # list of critical nodes that depend on this node
-        self.messy=False            # excluded for concurrency
+        self.ancestors = ancestors     # the parent node stack of the current node
+        self.symbol = None             # the Symbol table entry for this if node, if this node references a symbol
+        self.dependency = []           # list of critical nodes that depend on this node
+        self.messy=False               # excluded for concurrency
+        self.concurrency_groups = None # code grouping (if None, there is no concurrent dependency)
         
+# This is the base class for the llmPython AST walker, and it keeps track of symbol tables and cross references implicitly
+#    
 class ScopeAnalyzer(ast.NodeTransformer):
-    # This is the base class for the llmPython AST walker, and it keeps track of symbol tables and cross references implicitly
-    #
-    
-    
     def __init__(self, copy = None):
         if copy == None:
             self.symbol_table_stack = None  # no symbol table stack exists before VariablesAnalyzer is being or has been run
@@ -82,6 +81,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.have_symbol_table = False
             self.global_return_statement = None
             self.tracking=None
+            self.critical_dependencies = None
         else:
             self.have_symbol_table = copy.have_symbol_table
             self.global_return_statement = copy.global_return_statement
@@ -96,6 +96,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.critical_nodes = copy.critical_nodes
             self.nodelookup = copy.nodelookup
             self.tracking=None
+            self.critical_dependencies = copy.critical_dependencies
         
     def visit(self, node):
         self.node_stack.append(node)
@@ -111,7 +112,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
                 # stop when we hit the same node
                 self.node_stack.pop()
                 return node
-            else:
+            elif node != self.tracking:
                 self.current_node_lookup.dependency.append(self.tracking)
             
             if node != self.tracking and node in self.critical_nodes:
