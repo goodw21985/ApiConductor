@@ -62,7 +62,7 @@ class NodeCrossReference:
         self.symbol = None             # the Symbol table entry for this if node, if this node references a symbol
         self.dependency = []           # list of critical nodes that depend on this node
         self.messy=False               # excluded for concurrency
-        self.concurrency_groups = None # code grouping (if None, there is no concurrent dependency)
+        self.concurrency_group = None  # code grouping
         
 # This is the base class for the llmPython AST walker, and it keeps track of symbol tables and cross references implicitly
 #    
@@ -82,6 +82,8 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.global_return_statement = None
             self.tracking=None
             self.critical_dependencies = None
+            self.concurrency_group_code = None
+            self.concurrency_groups= None
         else:
             self.have_symbol_table = copy.have_symbol_table
             self.global_return_statement = copy.global_return_statement
@@ -97,6 +99,8 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.nodelookup = copy.nodelookup
             self.tracking=None
             self.critical_dependencies = copy.critical_dependencies
+            self.concurrency_group_code = None
+            self.concurrency_groups= copy.concurrency_groups
         
     def visit(self, node):
         self.node_stack.append(node)
@@ -119,7 +123,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
                 # stop when we see another critical node
                 self.node_stack.pop()
                 return node
-                
+                            
         ret = super().visit(node)
         self.node_stack.pop()
         return ret

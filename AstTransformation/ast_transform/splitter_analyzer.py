@@ -19,10 +19,10 @@ class CriticalNodeDepenencyGroup():
 class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
     def __init__(self, copy):
         super().__init__(copy) 
-        self.critical_dependency_groups = []
+        self.concurrency_groups = []
         self.critical_node_to_group = {}
         
-    def create_critical_dependency_groups(self):
+    def create_concurrency_groups(self):
         groups={}
         for critical_node in self.critical_nodes:
             groups[critical_node]=CriticalNodeDepenencyGroup()
@@ -58,11 +58,15 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
                     
         for group in grouped_list:
             group.recursive_set(group)
-                
-        self.critical_dependency_groups = grouped_list                   
-        
-    
-    def assign_nodes_tocreate_critical_dependency_groups(self):
+                         
+        finalize_group = CriticalNodeDepenencyGroup()
+        finalize_group.name = "GF"
+        finalize_group.group_dependencies = [grouped_list[-1]]
+            
+        grouped_list.append(finalize_group)
+        self.concurrency_groups = grouped_list                   
+            
+    def assign_nodes_tocreate_concurrency_groups(self):
         for node in self.nodelookup.keys():
             nodec = self.nodelookup[node]
             groups = []
@@ -81,15 +85,18 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
                 if not isCovered:
                     trimmed_groups.append(g)
 
+            if not trimmed_groups:
+                trimmed_groups.append(self.concurrency_groups[-1])
+                
             if len(trimmed_groups)>1:
                 raise ValueError
 
-            nodec.concurrency_groups = trimmed_groups
+            nodec.concurrency_group = trimmed_groups[0]
             
  
 def Scan(tree, parent=None):
     analyzer = SplitterAnalyzer(parent)
-    analyzer.create_critical_dependency_groups()
-    analyzer.assign_nodes_tocreate_critical_dependency_groups()
+    analyzer.create_concurrency_groups()
+    analyzer.assign_nodes_tocreate_concurrency_groups()
     return analyzer
 

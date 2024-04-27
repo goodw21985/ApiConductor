@@ -24,12 +24,64 @@ return c
 """
 
 expected="""
-"""
+q=3
+a=search_email(q)
+sum=a+a2
+sum+=q
+sum2=sum+3
+b=search_email(sum)  or search_teams(sum2)
+c=b
+return c
+
+
+C0 => G0 used by (C1 C2) = search_email(q)
+C1 => G1 used by (C3) = search_email(sum)
+C2 => G1 used by (C3) = search_teams(sum2)
+C3 => G2 used by () = return c
+
+G0 <= (C0) : uses 
+G1 <= (C1 C2) : uses G0
+G2 <= (C3) : uses G1
+GF <= () : uses G2
+
+G0 = search_email(q)
+G1 = search_email(sum)
+G1 = search_teams(sum2)
+G2 = return c
+G1: C1 C2 search_email(q)
+G0: C0 search_email
+G0: C0 q
+G0: C0 C1 C2 q = 3
+G0: C0 C1 C2 3
+G2: C3 search_email(sum)
+G1: C1 search_email
+G1: C1 sum
+G1: C1 C2 sum = a + a2
+G1: C1 C2 a + a2
+G1: C1 C2 a
+G1: C1 C2 a = search_email(q)
+G1: C1 C2 a2
+G1: C1 C2 sum += q
+G1: C1 C2 sum
+G1: C1 C2 q
+G2: C3 search_teams(sum2)
+G1: C2 search_teams
+G1: C2 sum2
+G1: C2 sum2 = sum + 3
+G1: C2 sum + 3
+G1: C2 sum
+G1: C2 3
+GF:  return c
+G2: C3 c
+G2: C3 c = b
+G2: C3 b
+G2: C3 b = search_email(sum) or search_teams(sum2)
+G2: C3 search_email(sum) or search_teams(sum2)"""
 
 def walk_groups(analyzer2: dependency_analyzer.DependencyAnalyzer):
     named = {}
     crit = analyzer2.critical_nodes
-    grps=analyzer2.critical_dependency_groups
+    grps=analyzer2.concurrency_groups
     num = 0
     for c in crit:
         named[c]= "C"+str(num)
@@ -72,9 +124,8 @@ def walk_nodes(analyzer2: dependency_analyzer.DependencyAnalyzer):
         nodec = analyzer2.nodelookup[n]
         try:
             code = astor.to_source(n).strip()
-            result = ' '.join([item.name for item in nodec.concurrency_groups])
             result2 = ' '.join([named[item] for item in nodec.dependency])
-            print(result+":"+result2+" "+code)
+            print(nodec.concurrency_group.name+": "+result2+" "+code)
         except Exception:
             pass
     pass
