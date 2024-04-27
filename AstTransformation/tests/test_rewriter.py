@@ -15,11 +15,11 @@ awaitable_functions = ["search_email", "search_teams","search_meetings"]
 
 source_code = """
 q=3
-a=search_email(q)
+a=search_email(q,0)
 sum=a+a2
 sum+=q
 sum2=sum+3
-b=search_email(sum)  or search_teams(sum2)
+b=search_email(sum+1)  or search_teams(b=sum2+1)
 c=b
 return c
 """

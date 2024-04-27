@@ -63,6 +63,7 @@ class NodeCrossReference:
         self.dependency = []           # list of critical nodes that depend on this node
         self.messy=False               # excluded for concurrency
         self.concurrency_group = None  # code grouping
+        self.reassigned = None         # name of expression if assigned to newly created variable
         
 # This is the base class for the llmPython AST walker, and it keeps track of symbol tables and cross references implicitly
 #    
