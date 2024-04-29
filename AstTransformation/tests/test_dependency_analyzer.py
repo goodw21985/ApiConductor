@@ -11,6 +11,8 @@ from ast_transform import scope_analyzer
 from unittest.mock import patch
 import io
 
+import code_verification
+
 awaitable_functions = ["search_email", "search_teams","search_meetings"]
 
 source_code2 = """

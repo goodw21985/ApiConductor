@@ -11,6 +11,7 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
         self.implicitly_async_functions = implicitly_async_functions
         self.critical_nodes =[]
         self.global_return_statement = None
+        self.passName="variables"
 
 
     def visit_Name2(self, node):

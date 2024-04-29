@@ -1,5 +1,5 @@
 import ast
-from re import S
+from re import A, S
 from xml.dom import Node
 
 from . import Util
@@ -40,9 +40,20 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             self.concurrency_start_code[groupname]=[]
         self.concurrency_start_code[groupname].append(assign)
         if groupname not in self.concurrency_start_nonlocals:
-            self.concurrency_start_nonlocals[groupname]={}
+            self.concurrency_start_nonlocals[groupname]=set([])
+
         self.concurrency_start_nonlocals[groupname].add(unique_name)
-        
+        for new_arg in new_args:
+            if isinstance(new_arg, ast.Name):
+                self.concurrency_start_nonlocals[groupname].add(new_arg.id)
+        for new_kw in new_keywords:
+            if isinstance(new_kw.value, ast.Name):
+                self.concurrency_start_nonlocals[groupname].add(new_kw.value.id)
+          
+        parent_group = self.nodelookup[self.node_stack[-2]].concurrency_group.name
+        if parent_group not in self.concurrency_group_nonlocals:
+            self.concurrency_group_nonlocals[parent_group]=set([])
+        self.concurrency_group_nonlocals[parent_group].add(unique_name)
         return ast.Await(value = self.MakeLoadName(unique_name))
             
     def place(self, orig, node):
@@ -55,7 +66,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         unique_name = self.MakeUniqueName()
         assign = ast.Assign(targets=[self.MakeStoreName(unique_name)], value = node)
         self.concurrency_group_code[groupname].append(assign)
-        self.add_nonlocal(groupname, node.id)
+        self.add_nonlocal(groupname, unique_name)
 
 
         return self.MakeLoadName(unique_name)
@@ -63,10 +74,11 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     def visit_Name2(self, node):
         groupname = self.current_node_lookup.concurrency_group.name
         self.add_nonlocal(groupname, node.id)
+        return node
     
     def add_nonlocal(self, groupname, id):
         if groupname not in self.concurrency_group_nonlocals:
-            self.concurrency_group_nonlocals[groupname]={}
+            self.concurrency_group_nonlocals[groupname]=set([])
         self.concurrency_group_nonlocals[groupname].add(id)
         self.allnonlocals.add(id)
         
@@ -75,28 +87,35 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         self.concurrency_start_code = {}
         self.concurrency_group_nonlocals = {}
         self.concurrency_start_nonlocals = {}
-        self.allnonlocals = {}
+        self.allnonlocals = set([])
+        
+        statement_group_name = self.concurrency_groups[0].name
         for statement in node.body:
-            statement_node_lookup = self.nodelookup[statement]
-            self.statement_group = statement_node_lookup.concurrency_group
-            statement_group_name = self.statement_group.name
+            if statement in self.nodelookup:
+                # if we cannot find the statement, it is probably an 
+                # unreferenced statement..  perhaps for logging?
+                # add to previous group
+                statement_node_lookup = self.nodelookup[statement]
+                self.statement_group = statement_node_lookup.concurrency_group
+                statement_group_name = self.statement_group.name
             if statement_group_name not in self.concurrency_group_code:
                 self.concurrency_group_code[statement_group_name]=[]
             new_statement = self.visit(statement)
             self.concurrency_group_code[statement_group_name].append(new_statement)
 
         for groupname in self.concurrency_group_nonlocals:
-            self.concurrency_group_code[groupname]=self.prependGlobals(self.concurrency_group_code[groupname], self.concurrency_group_nonlocal)
+            if groupname != self.concurrency_groups[-1].name:
+                self.concurrency_group_code[groupname]=self.prependGlobals(self.concurrency_group_code[groupname], self.concurrency_group_nonlocals[groupname])
                                  
         for groupname in self.concurrency_start_nonlocals:
-            self.concurrency_start_code[groupname]=self.prependGlobals(self.concurrency_start_code[groupname], self.concurrency_start_nonlocal)
+            self.concurrency_start_code[groupname]=self.prependGlobals(self.concurrency_start_code[groupname], self.concurrency_start_nonlocals[groupname])
                                  
         self.concurrency_group_nonlocals = {}
 
         new_body_statements = []
         final_statements = []
         for group_name in self.concurrency_group_code.keys():
-            if group_name=="GF":
+            if group_name == self.concurrency_groups[-1].name:
                 final_statements = self.concurrency_group_code[group_name]
             else:
                 function_def=self.MakeFunctionDef(          
@@ -112,32 +131,42 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
                 new_body_statements.append(function_def)
                 
-        for symbol in self.allnonlocals:
+        for symbol in sorted(self.allnonlocals):
             targets= [self.MakeStoreName(symbol)]
-            value=ast.NameConstant(value=None)
-            statement = ast.Assign(targets=tafgets, value=value)
+            value=ast.Constant(value=None)
+            statement = ast.Assign(targets=targets, value=value)
             new_body_statements.append(statement)
 
-        for statement in final_statements:
-            if isinstance(statement, ast.Return):
-                if statement.value:
-                    callnode = ast.Call(func=self.MakeLoadName("Return"), args=[statement.value], keywords=[])
-                    new_body_statements.append(callnode) 
-            else:
-                new_body_statements.append(statement)
+        if final_statements:
+            for statement in final_statements:
+                if isinstance(statement, ast.Return):
+                    if statement.value:
+                        call_node = ast.Call(
+                            func=ast.Attribute(
+                                value=ast.Name(id="orchestrator", ctx=ast.Load()),  # Attribute value "orchestrator"
+                                attr="Return",  # Attribute name "Return"
+                                ctx=ast.Load()  # Load context
+                            ),
+                            args=[statement.value],  # Argument list
+                            keywords=[]  # No keyword arguments
+                        )
+                        new_body_statements.append(ast.Expr(call_node)) 
+                else:
+                    new_body_statements.append(statement)
         
         return ast.Module(body=new_body_statements, type_ignores=node.type_ignores)
 
 
     def prependGlobals(self, list, symbols):
         new_list = []
-        for symbol in self.concurrency_group_nonlocals[groupname]:
-            new_list.append(ast.Global(self.MakeLoadName(symbol)))
+        new_list.append(ast.Global(names=sorted(symbols)))
         for statement in list:
             new_list.append(statement)
+        return new_list
 
     def MakeLoadName(self, name):
-        return ast.Name(id=name, ctx=ast.Load())
+        name= ast.Name(id=name, ctx=ast.Load())
+        return name
             
     def MakeStoreName(self, name):
         return ast.Name(id=name, ctx=ast.Store())

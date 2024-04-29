@@ -6,6 +6,8 @@ from . import scope_analyzer
 class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
     def __init__(self, copy):
         super().__init__(copy) 
+        self.passName = "dependency"
+        
     def Endpath():
         raise ValueError       
 
@@ -14,6 +16,8 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
         return node
     def visit_Assign(self, node):
         self.visit(node.value)
+        for t in node.targets:
+            self.skip_visit(t)
         return node
     def visit_AugAssign(self, node):
         self.generic_visit(node) #AugAssign(node)
@@ -157,7 +161,7 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
             self.EndPath()
         return node
     def visit_Name2(self, node):
-        if node.id=="q":
+        if node.id=="sum2":
             node=node
         s=self.current_node_lookup
         for writer in s.symbol.write:

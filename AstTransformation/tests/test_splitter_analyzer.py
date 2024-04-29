@@ -18,7 +18,7 @@ a=search_email(q)
 sum=a+a2
 sum+=q
 sum2=sum+3
-b=search_email(sum)  or search_teams(sum2)
+b=search_email(sum)>>1  or search_teams(sum2)>>2
 c=b
 return c
 """
@@ -29,7 +29,7 @@ a=search_email(q)
 sum=a+a2
 sum+=q
 sum2=sum+3
-b=search_email(sum)  or search_teams(sum2)
+b=search_email(sum)>>1  or search_teams(sum2)>>2
 c=b
 return c
 
@@ -42,7 +42,6 @@ C3 => G2 used by () = return c
 G0 <= (C0) : uses 
 G1 <= (C1 C2) : uses G0
 G2 <= (C3) : uses G1
-GF <= () : uses G2
 
 G0 = search_email(q)
 G1 = search_email(sum)
@@ -71,12 +70,16 @@ G1: C2 sum2 = sum + 3
 G1: C2 sum + 3
 G1: C2 sum
 G1: C2 3
-GF:  return c
+G2:  return c
 G2: C3 c
 G2: C3 c = b
 G2: C3 b
-G2: C3 b = search_email(sum) or search_teams(sum2)
-G2: C3 search_email(sum) or search_teams(sum2)"""
+G2: C3 b = search_email(sum) >> 1 or search_teams(sum2) >> 2
+G2: C3 search_email(sum) >> 1 or search_teams(sum2) >> 2
+G2: C3 search_email(sum) >> 1
+G2: C3 1
+G2: C3 search_teams(sum2) >> 2
+G2: C3 2"""
 
 def walk_groups(analyzer2: dependency_analyzer.DependencyAnalyzer):
     named = {}
@@ -122,6 +125,8 @@ def walk_nodes(analyzer2: dependency_analyzer.DependencyAnalyzer):
             pass
     for n in analyzer2.nodelookup.keys():
         nodec = analyzer2.nodelookup[n]
+        if not nodec.dependecyVisited:
+            continue
         try:
             code = astor.to_source(n).strip()
             result2 = ' '.join([named[item] for item in nodec.dependency])

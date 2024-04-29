@@ -61,14 +61,16 @@ class NodeCrossReference:
         self.ancestors = ancestors     # the parent node stack of the current node
         self.symbol = None             # the Symbol table entry for this if node, if this node references a symbol
         self.dependency = []           # list of critical nodes that depend on this node
-        self.messy=False               # excluded for concurrency
         self.concurrency_group = None  # code grouping
         self.reassigned = None         # name of expression if assigned to newly created variable
-        
+        self.dependecyVisited = False  # used to identify nodes not followed in dependency analysis
+
 # This is the base class for the llmPython AST walker, and it keeps track of symbol tables and cross references implicitly
 #    
 class ScopeAnalyzer(ast.NodeTransformer):
     def __init__(self, copy = None):
+        self.passName = None
+
         if copy == None:
             self.symbol_table_stack = None  # no symbol table stack exists before VariablesAnalyzer is being or has been run
             self.symbol_table = None
@@ -103,6 +105,21 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.concurrency_group_code = None
             self.concurrency_groups= copy.concurrency_groups
         
+    def skip_visit(self, node):
+        self.node_stack.append(node)
+        self.current_node_stack = self.node_stack[:]
+        if self.have_symbol_table:
+            if node not in self.nodelookup:
+                self.current_node_lookup = NodeCrossReference(self.current_node_stack)
+                self.nodelookup[node] = self.current_node_lookup
+            else:
+                self.current_node_lookup = self.nodelookup[node]
+        if isinstance(node, ast.Name):
+            self.skip_visit_Name(node)
+        else:
+            raise ValueError
+        self.node_stack.pop()
+
     def visit(self, node):
         self.node_stack.append(node)
         self.current_node_stack = self.node_stack[:]
@@ -112,6 +129,8 @@ class ScopeAnalyzer(ast.NodeTransformer):
                 self.nodelookup[node] = self.current_node_lookup
             else:
                 self.current_node_lookup = self.nodelookup[node]
+            if self.passName == "dependency":
+                self.current_node_lookup.dependecyVisited = True
         if self.tracking:
             if self.tracking in self.current_node_lookup.dependency:
                 # stop when we hit the same node
@@ -152,8 +171,11 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
+           
+    def skip_visit_Name(self, node):        
+        self.current_node_lookup.symbol=  self.get_variable_reference(node.id,  self.current_node_stack);
+
     def visit_Name(self, node):
-        
         if self.have_symbol_table:
             if not self.IgnoreSymbol(node):
                 self.current_node_lookup.symbol=  self.get_variable_reference(node.id,  self.current_node_stack);
@@ -185,7 +207,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         return node
 
     def visit_Attribute(self, node):   
-        if self.have_symbol_table is None:
+        if self.have_symbol_table:
             (name ,isClass, _) = self.GetVariableContext()
             if isClass:     
                 self.current_node_lookup.symbol= self.get_class_variable_reference(name, self.current_node_stack)

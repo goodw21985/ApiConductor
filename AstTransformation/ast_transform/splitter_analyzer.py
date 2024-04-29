@@ -59,11 +59,6 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
         for group in grouped_list:
             group.recursive_set(group)
                          
-        finalize_group = CriticalNodeDepenencyGroup()
-        finalize_group.name = "GF"
-        finalize_group.group_dependencies = [grouped_list[-1]]
-            
-        grouped_list.append(finalize_group)
         self.concurrency_groups = grouped_list                   
             
     def assign_nodes_tocreate_concurrency_groups(self):
