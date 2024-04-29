@@ -1,5 +1,4 @@
 import ast
-from . import Util
 from . import scope_analyzer
 
 class CriticalNodeDepenencyGroup():
@@ -8,6 +7,7 @@ class CriticalNodeDepenencyGroup():
         self.group_dependencies=[]
         self.recursive_group_dependencies=[]
         self.grouped_critical_nodes=[]
+        self.triggers = []
         self.name=""
     
     def recursive_set(self, node):
@@ -58,8 +58,13 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
                     
         for group in grouped_list:
             group.recursive_set(group)
+            for dependent in group.group_dependencies:
+                dependent.triggers.append(group)
+                if len(dependent.triggers)>1:
+                    raise ValueError("group can only trigger one group")
                          
-        self.concurrency_groups = grouped_list                   
+        self.concurrency_groups = grouped_list     
+        
             
     def assign_nodes_tocreate_concurrency_groups(self):
         for node in self.nodelookup.keys():

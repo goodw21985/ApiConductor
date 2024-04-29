@@ -1,6 +1,5 @@
 import ast
 
-from . import Util
 from . import scope_analyzer
 
 class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):

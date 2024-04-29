@@ -40,6 +40,7 @@
     <Compile Include="ast_transform\astor\string_repr.py" />
     <Compile Include="ast_transform\astor\tree_walk.py" />
     <Compile Include="ast_transform\astor\__init__.py" />
+    <Compile Include="ast_transform\orchestrator.py" />
     <Compile Include="ast_transform\null_analyzer.py" />
     <Compile Include="ast_transform\dependency_analyzer.py" />
     <Compile Include="ast_transform\dispatch.py" />
@@ -48,7 +49,6 @@
     <Compile Include="ast_transform\splitter_analyzer.py" />
     <Compile Include="ast_transform\scope_analyzer.py" />
     <Compile Include="ast_transform\variables_analyzer.py" />
-    <Compile Include="ast_transform\Util.py" />
     <Compile Include="ast_transform\__init__.py" />
     <Compile Include="examples\client_library.py" />
     <Compile Include="examples\saftey.py" />

@@ -27,11 +27,9 @@ return c
 """
 
 
-validate={"_concurrent_G0": ["q"],
-   "_concurrent_start_G0": ["__1", ["search_email"]],
-   "_concurrent_G1": ["a", "sum", "sum2", "__2", "__4"],
-   "_concurrent_start_G1": ["__3", "__5",["search_meetings", "search_teams"]],
-   ...: ["b","c",["Return"]]
+validate={"_concurrent_G0": ["q", "__1", ["search_email"]],
+   "_concurrent_G1": ["a", "sum", "sum2", "__2", "__4", "__3", "__5",["search_meetings", "search_teams"]],
+   "_concurrent_G2": ["b","c","__return_value"],
    }
 
 class TestRewriterModule(unittest.TestCase):
@@ -52,6 +50,8 @@ class TestRewriterModule(unittest.TestCase):
         result = astor.to_source(rewrite).strip()
         print(result)
 
+        with open("C:/repos/llmPython/LLmModule/test.py", 'w') as file:
+            file.write(result)  
         verify = code_verification.CodeVerification(rewrite, validate)       
         
 if __name__ == '__main__':

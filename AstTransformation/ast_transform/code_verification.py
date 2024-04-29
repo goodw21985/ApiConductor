@@ -1,13 +1,15 @@
 
 import ast
 from multiprocessing import Value
+from tkinter import SEL
 from ast_transform import astor
+from ast_transform import rewriter
 
 class VerificationVisitor(ast.NodeVisitor):
 
 
     # functionDef entry point if arguments != None
-    def __init__(self, node, arguments=None):
+    def __init__(self, node, arguments=None, level = 0):
         self.arguments = arguments      # arguments to this functionDef, or null
         self.assignments = {}           # all variables assigned to 
         self.statements = []            # all statements without assignments, or if or loops
@@ -15,27 +17,39 @@ class VerificationVisitor(ast.NodeVisitor):
         self.names=set([])              # list of symbols used
         self.awaitednames=set([])       # list of symbols used with await
         self.async_names = set([])      # all variables that require await        
-        self.globals=set([])            # list of symbols that are global
+        self.nonlocals=set([])            # list of symbols that are nonlocal
         self.initialized=set([])        # list of symbols set to None before anything else
         self.defs = {}                  # nodes of all functions defined
         self.children = {}              # child VerificationVisitor for each function defined
-        if (arguments!=None):
-            self.inDef=True
+        self.add_tasks = []             # every call to orcgestrator add_tasks is logged here
+        self.called_functions= []       # every paramaterless call to a local function is is logged here
+        if level==0:
+            self.inLocalFunction=False
+            self.visit(node)
+            if len(self.defs) != 1:
+                raise ValueError("top level requires exactly one function defined for the program")
+            funcDefName = next(iter(self.defs.keys()))
+            funcDef = self.defs[funcDefName]
+            self.children[funcDefName] = VerificationVisitor(funcDef.body, funcDef.args, 1)
+
+        elif level==1:
+            self.inLocalFunction=False
             for sub in node:
                 self.visit(sub)
-        else:
-            self.inDef=False
-            self.visit(node)
 
             for funcDefName in self.defs.keys():
                 funcDef = self.defs[funcDefName]
-                self.children[funcDefName] = VerificationVisitor(funcDef.body, funcDef.args)
+                self.children[funcDefName] = VerificationVisitor(funcDef.body, funcDef.args, 2)
+        else:
+            self.inLocalFunction=True
+            for sub in node:
+                self.visit(sub)
      
     def visit_Await(self, node):
         if isinstance(node.value, ast.Name):
-            if self.inDef:
-                if node.value.id not in self.globals:
-                    raise ValueError("symbol not global")
+            if self.inLocalFunction:
+                if node.value.id not in self.nonlocals:
+                    raise ValueError("symbol not nonlocal")
             self.awaitednames.add(node.value.id)
         else:
             raise ValueError("can only await ast.Name")
@@ -43,23 +57,25 @@ class VerificationVisitor(ast.NodeVisitor):
     def visit_Name(self, node):
         if node.id == "orchestrator":
             return
-        if self.inDef:
-            if node.id not in self.globals:
-                raise ValueError("symbol not global")
-            
-        if node.id=="__3":
+        if node.id in self.defs:
+            return
+        if self.inLocalFunction:
+            if node.id not in self.nonlocals:
+                raise ValueError("symbol not nonlocal")
+           
+        if (node.id == "__1"):
             pass
         self.names.add(node.id)
                
-    def visit_Global(self, node):
-        if not self.inDef:
-            raise ValueError("global must be inside function def")
+    def visit_Nonlocal(self, node):
+        if not self.inLocalFunction:
+            raise ValueError("nonlocal must be inside function def")
         for n in node.names:
             if n in self.names:
-                raise ValueError("globals first")
+                raise ValueError("nonlocals first")
             if n in self.awaitednames:
-                raise ValueError("globals first")
-            self.globals.add(n)
+                raise ValueError("nonlocals first")
+            self.nonlocals.add(n)
             
     def visit_Expr(self, node):
         self.statements.append(node)
@@ -88,6 +104,8 @@ class VerificationVisitor(ast.NodeVisitor):
                         initialized=True
             if not initialized:
                 self.assignments[id] = node.targets
+            else:
+                return
         else:
             raise ValueError("assignment to tuple")
         self.generic_visit(node)
@@ -103,7 +121,7 @@ class VerificationVisitor(ast.NodeVisitor):
             
         if (isinstance(node.func, ast.Attribute) 
             and isinstance(node.func.value, ast.Name) 
-            and node.func.value.id=="orchestrator"):
+            and node.func.value.id==rewriter.Rewriter.orchestrator):
 
             name = node.func.attr
             self.async_calls.add(name)
@@ -111,9 +129,16 @@ class VerificationVisitor(ast.NodeVisitor):
             if not isAssignChild and not isExprChild:
                 raise ValueError("orchestrator functions must be in assign or expr statements")
             
+            if name == rewriter.Rewriter.functionAddTask:
+                self.add_tasks.append([node.args[0].id, node.args[1].id])
+                return;
             for arg in node.args:
                 if not isinstance(arg, ast.Name) and not isinstance(arg, ast.Constant):
-                    raise ValueError("orchestrator function arguments must be ast.Name")
+                    if isinstance(arg, ast.Call) and isinstance(arg.func, ast.Name) and arg.func.id == rewriter.Rewriter.programFunction:
+                        # allow orchestrator.Return(_program())
+                        pass
+                    else:
+                        raise ValueError("orchestrator function arguments must be ast.Name")
             for kw in node.keywords:
                 if not isinstance(kw.value, ast.Name) and not isinstance(kw.value, ast.Constant):
                     raise ValueError("orchestrator function arguments must be ast.Name")
@@ -128,12 +153,19 @@ class VerificationVisitor(ast.NodeVisitor):
                         raise ValueError("orchestrator values must be set to name")
                 else:
                     raise ValueError("orchestrator values cannot be set to tuple")
-                    
+        elif isinstance(node.func, ast.Name) and not node.args and not node.keywords:
+                self.called_functions.append(node.func.id)
+                return
         self.generic_visit(node)
             
     def visit_FunctionDef(self, node):
         self.defs[node.name] = node
-        if self.inDef:
+        if self.inLocalFunction:
+            raise ValueError("no recursive function definitions")
+
+    def visit_AsyncFunctionDef(self, node):
+        self.defs[node.name] = node
+        if self.inLocalFunction:
             raise ValueError("no recursive function definitions")
 
     def checkawait(self):
@@ -188,11 +220,15 @@ class VerificationVisitor(ast.NodeVisitor):
                     child2 = self.children[group2]
                 child2.validate(child==child2, expected[group])
 
+    def validateBase(self, validate):
+        child = next(iter(self.children.values()))
+        child.checkawait()
+        child.validateAll(validate)
+
 class CodeVerification:
     def __init__(self,tree, validate):
         self.root = VerificationVisitor(tree)
-        self.root.checkawait()
-        self.root.validateAll(validate)
+        self.root.validateBase(validate)
         
         
             

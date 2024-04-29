@@ -1,5 +1,4 @@
 import ast
-from . import Util
 from . import scope_analyzer
 
 class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
