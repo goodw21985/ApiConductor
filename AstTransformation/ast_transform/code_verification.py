@@ -1,5 +1,6 @@
 
 import ast
+from multiprocessing import Value
 from ast_transform import astor
 
 class VerificationVisitor(ast.NodeVisitor):
@@ -10,7 +11,7 @@ class VerificationVisitor(ast.NodeVisitor):
         self.arguments = arguments      # arguments to this functionDef, or null
         self.assignments = {}           # all variables assigned to 
         self.statements = []            # all statements without assignments, or if or loops
-        self.orchestrator_calls = {}    # all calls to orchestrator functions
+        self.async_calls = set([])      # all calls to orchestrator functions
         self.names=set([])              # list of symbols used
         self.awaitednames=set([])       # list of symbols used with await
         self.async_names = set([])      # all variables that require await        
@@ -70,25 +71,29 @@ class VerificationVisitor(ast.NodeVisitor):
         self.statement = node
         if isinstance(node.value, ast.Call):
             self.visit_Call(node.value)
-            if self.orchestrator_call:
+            if self.is_orchestrator_call:
                 symbol = node.targets[0].id
                 self.awaitednames.add(symbol)
+                self.assignments[symbol] = node.targets
                 return
 
         if len(node.targets)==1 and isinstance(node.targets[0],ast.Name):
             id = node.targets[0].id
+            initialized=False
             if isinstance(node.value, ast.Constant):
                 if node.value.value==None:
                     id = node.targets[0].id
                     if (id not in self.names):
                         self.initialized.add(id)
-            self.assignments[id] = node.targets
+                        initialized=True
+            if not initialized:
+                self.assignments[id] = node.targets
         else:
             raise ValueError("assignment to tuple")
         self.generic_visit(node)
 
     def visit_Call(self, node):
-        self.orchestrator_call=False
+        self.is_orchestrator_call=False
         isAssignChild= False
         isExprChild= False
         if isinstance(self.statement, ast.Assign):
@@ -101,6 +106,8 @@ class VerificationVisitor(ast.NodeVisitor):
             and node.func.value.id=="orchestrator"):
 
             name = node.func.attr
+            self.async_calls.add(name)
+            
             if not isAssignChild and not isExprChild:
                 raise ValueError("orchestrator functions must be in assign or expr statements")
             
@@ -116,13 +123,12 @@ class VerificationVisitor(ast.NodeVisitor):
                     target = self.statement.targets[0]
                     if isinstance(target, ast.Name):
                         self.async_names.add(target.id)
-                        self.orchestrator_call=True
+                        self.is_orchestrator_call=True
                     else:
                         raise ValueError("orchestrator values must be set to name")
                 else:
                     raise ValueError("orchestrator values cannot be set to tuple")
                     
-                
         self.generic_visit(node)
             
     def visit_FunctionDef(self, node):
@@ -146,10 +152,47 @@ class VerificationVisitor(ast.NodeVisitor):
             if name not in async_names:
                 raise ValueError("symbol should not be awaited")
 
+    def validateAssignment(self, isExpected, expected):
+        if (expected in self.assignments.keys()):
+            if not isExpected:
+                raise ValueError("assignment seen where not expected")
+        else:
+            if isExpected:
+                raise ValueError("assignment not seen where expected")
+        
+    def validateFunction(self, isExpected, expected):
+        if (expected in self.async_calls):
+            if not isExpected:
+                raise ValueError("function seen where not expected")
+        else:
+            if isExpected:
+                raise ValueError("function not seen where expected")
+        
+
+    def validate(self, isExpected, expected):
+        for item in expected:
+            if isinstance(item, list):
+                for sub in item:
+                    self.validateFunction(isExpected, sub)
+            else:
+                self.validateAssignment(isExpected, item)
+            
+    def validateAll(self, expected):
+        for group in expected.keys():
+            child = self
+            if group!=...:
+                child = self.children[group]
+            for group2 in expected.keys():
+                child2 = self
+                if group2!=...:
+                    child2 = self.children[group2]
+                child2.validate(child==child2, expected[group])
+
 class CodeVerification:
-    def __init__(self,tree):
+    def __init__(self,tree, validate):
         self.root = VerificationVisitor(tree)
         self.root.checkawait()
+        self.root.validateAll(validate)
         
         
             
