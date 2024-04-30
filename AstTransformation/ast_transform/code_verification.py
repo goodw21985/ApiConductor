@@ -6,6 +6,18 @@ from ast_transform import astor
 from ast_transform import rewriter
 
 class VerificationVisitor(ast.NodeVisitor):
+    # copied from rewriter
+    orchestrator = "orchestrator"
+    orchestratorModule = "orchestrator"
+    orchestratorClass = "Orchestrator"
+    returnFunction = "Return"
+    programFunction = "_program"
+    functionPrefix = "_concurrent_"
+    completionPrefix = "_completion"
+    functionAddTask = '_add_task'
+    return_value_name = '_return_value'
+    functionDispatch = '_dispatch'
+    setPrefix = '_await_set_'
 
 
     # functionDef entry point if arguments != None
@@ -51,11 +63,17 @@ class VerificationVisitor(ast.NodeVisitor):
                 if node.value.id not in self.nonlocals:
                     raise ValueError("symbol not nonlocal")
             self.awaitednames.add(node.value.id)
+        elif isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Name) and not node.value.args:
+            pass
         else:
-            raise ValueError("can only await ast.Name")
+            raise ValueError("can only await ast.Name or empty function calls")
     
     def visit_Name(self, node):
-        if node.id == "orchestrator":
+        if node.id == self.orchestrator:
+            return
+        if node.id == "asyncio":
+            return
+        if node.id == "str":
             return
         if node.id in self.defs:
             return
@@ -63,8 +81,6 @@ class VerificationVisitor(ast.NodeVisitor):
             if node.id not in self.nonlocals:
                 raise ValueError("symbol not nonlocal")
            
-        if (node.id == "__1"):
-            pass
         self.names.add(node.id)
                
     def visit_Nonlocal(self, node):
@@ -110,12 +126,24 @@ class VerificationVisitor(ast.NodeVisitor):
             raise ValueError("assignment to tuple")
         self.generic_visit(node)
 
+    def IsTaskCall(self, node):
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Attribute):
+                if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
+                    if node.func.attr == "create_task" and node.func.value.id=="asyncio":
+                        return True
+                    
+        return False
+        
     def visit_Call(self, node):
         self.is_orchestrator_call=False
         isAssignChild= False
         isExprChild= False
         if isinstance(self.statement, ast.Assign):
-            isAssignChild = self.statement.value == node
+            if self.IsTaskCall(self.statement.value):
+                child = self.statement.value.args[0]
+
+                isAssignChild = child == node
         elif isinstance(self.statement, ast.Expr):
             isExprChild = self.statement.value == node
             
@@ -126,8 +154,8 @@ class VerificationVisitor(ast.NodeVisitor):
             name = node.func.attr
             self.async_calls.add(name)
             
-            if not isAssignChild and not isExprChild:
-                raise ValueError("orchestrator functions must be in assign or expr statements")
+            if not isAssignChild and not isExprChild and name!=self.orchestratorClass:
+                raise ValueError("orchestrator functions must be assigned as task or in expr statements")
             
             if name == rewriter.Rewriter.functionAddTask:
                 self.add_tasks.append([node.args[0].id, node.args[1].id])

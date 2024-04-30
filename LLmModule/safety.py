@@ -103,6 +103,7 @@ ALLOWED_MODULES = set([
     'fnmatch',
     'os.path',
     'pickle',
+    '_pydev_bundle.pydev_monkey',
 ])
 # modules that can be loaded as "from . import X"
 ALLOWED_FROMLIST = set([
@@ -168,6 +169,7 @@ builtins.open = disabled_FileIO
 import threading
 import asyncio
 import io
+
 threading.RLock = disabled_threading
 threading.Semaphore = disabled_threading
 threading.BoundedSemaphore = disabled_threading

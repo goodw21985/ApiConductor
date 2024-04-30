@@ -18,10 +18,10 @@ source_code = """
 pass
 q=3
 a=search_email(q,0)
-sum=a+a2
-sum+=q
-sum2=sum+3
-b=search_meetings(sum+1)  or search_teams(b=sum2+1)
+sum=str(a)+'j'
+sum += str(q)
+sum2=sum + "q"
+b=search_meetings(sum+"a") + search_teams(b=sum2+"b")
 c=b
 return c
 """

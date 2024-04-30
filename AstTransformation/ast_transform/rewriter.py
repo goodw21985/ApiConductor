@@ -49,10 +49,12 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             ctx=ast.Load()
         )
 
-        call =  ast.Call(func=function_call, args=new_args, keywords=new_keywords)
+        call1 =  ast.Call(func=function_call, args=new_args, keywords=new_keywords)
+        
+        call = self.MakeTask(call1)
 
-        # => _1 = orchestrator.search_email(q, 0)
-
+        # => _1 = asyncio.create_task(orchestrator.search_email(q, 0))
+        
         group = self.current_node_lookup.concurrency_group
         groupname = group.name
         unique_name = self.MakeUniqueName(node)
@@ -122,8 +124,11 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         return self.MakeLoadName(unique_name)
     
     def visit_Name2(self, node):
-        groupname = self.current_node_lookup.concurrency_group.name
-        self.add_nonlocal(groupname, node.id)
+        symbol = self.current_node_lookup.symbol
+        if symbol.write:
+            # system symbol does not require nonlocal
+            groupname = self.current_node_lookup.concurrency_group.name
+            self.add_nonlocal(groupname, node.id)
         return node
     
     def add_nonlocal(self, groupname, id):
@@ -182,11 +187,10 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         # => async def _concurrent_G0()
         for group_name in self.concurrency_group_code.keys():
-            isAsync =  group_name != self.concurrency_groups[0]
             function_def=self.MakeFunctionDef(          
                 self.functionPrefix+group_name,
                 self.concurrency_group_code[group_name],
-                isAsync)
+                isAsync=True)
 
             new_body_statements.append(function_def)
                 
@@ -199,21 +203,14 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
             new_body_statements.append(function_def)
 
-        # => _concurrent_G0()
-        new_body_statements.append(ast.Expr(ast.Call(
-            func=ast.Name(self.functionPrefix+self.concurrency_groups[0].name),
-            args=[],
-            keywords=[]
-        )))            
-
-        # => orchestrator.dispatch()
+        # => orchestrator.dispatch(_concurrent_G0)
         new_body_statements.append(ast.Expr(ast.Call(
             func=ast.Attribute(
                 value=ast.Name(id=self.orchestrator, ctx=ast.Load()), 
                 attr=self.functionDispatch, 
                 ctx=ast.Load()
             ),
-            args=[],
+            args=[ast.Name(self.functionPrefix+self.concurrency_groups[0].name)],
             keywords=[])))
 
         # => return _return_value
@@ -248,11 +245,13 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         )
 
         # => import orchestrator
+        # => import asyncio
         # => orchestrator = orchestrator.Orchestrator()
         # => def _program():
         # => orchestrator.Return(_program())
         module_statements = [
             ast.Import(names=[ast.alias(name=self.orchestratorModule, asname=None)]),
+            ast.Import(names=[ast.alias(name="asyncio", asname=None)]),
             ast.Assign(targets=[intantiated_class], value=instantiation),
             program,
             ast.Expr(call_return)
@@ -284,7 +283,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             keywords=[]
         )))
 
-        # if not _await_set_G1 : _concurrent_G1() 
+        # if not _await_set_G1 : await _concurrent_G1() 
         statements.append(ast.If(
             test=ast.UnaryOp(
                 op=ast.Not(),
@@ -292,11 +291,11 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             ),
             body=[
                 ast.Expr(
-                    value=ast.Call(
+                    value=ast.Await(ast.Call(
                         func=ast.Name(id=self.functionPrefix+triggered.name, ctx=ast.Load()),
                         args=[],
                         keywords=[]
-                    )
+                    ))
                 )
             ],
             orelse=[]
@@ -351,6 +350,28 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         
         return function_def
     
+    def MakeTask(self, node):
+        return ast.Call(
+            func=ast.Attribute(
+                value=ast.Name(id='asyncio', ctx=ast.Load()),
+                attr='create_task',
+                ctx=ast.Load()
+            ),
+            args=[node],
+            keywords=[]
+        )
+    
+    def MakeRun(self, node):
+        return ast.Call(
+            func=ast.Attribute(
+                value=ast.Name(id='asyncio', ctx=ast.Load()),
+                attr='run',
+                ctx=ast.Load()
+            ),
+            args=[node],
+            keywords=[]
+        )
+
     def MakeUniqueName(self, node=None):
         self.unique_name_id+=1
         name = "_"+str(self.unique_name_id)

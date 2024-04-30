@@ -11,21 +11,21 @@ class Orchestrator:
     def __init__(self):
         self._task_dispatch = {}
         self._task_list = []
-        pass
+        self.loop = get_event_loop()
     
     # client accessable functions 
     
     async def search_email(self, a=0, b=0):
         await sleep(1)
-        return "1"
+        return str(a)+ "1"
 
     async def search_meetings(self, a=0, b=0):
         await sleep(1)
-        return "2"
+        return str(a)+"2"
 
     async def search_teams(self, a=0, b=0):
         await sleep(1)
-        return "3"
+        return str(b)+"3"
 
     def Return(self, a):
         print(a)
@@ -34,21 +34,23 @@ class Orchestrator:
     def _add_task(self, task, dispatch):
         self._task_dispatch[task]=dispatch
         self._task_list.append(task)
-  
-    def _dispatch(self):
-        loop = get_event_loop()
-        loop.run_until_complete(self.__async_dispatch())
-        loop.close()
+
+    def _dispatch(self, first):
+        try:
+            self.loop.run_until_complete(self._async_dispatch(first))
+        finally:
+            self.loop.close()
     
-    async def __async_dispatch(self):
+    async def _async_dispatch(self, first):
+        await first()
         while self._task_list:
-            done, _ = await wait(self.__task_list, return_when=FIRST_COMPLETED)
+            done, _ = await wait(self._task_list, return_when=FIRST_COMPLETED)
             # Handle completed tasks
             for task in done:
-                await self.__task_dispatch[task]()
+                await self._task_dispatch[task]()
 
                 # Remove the completed task from the list
-                self.__task_list.remove(task)
+                self._task_list.remove(task)
 
 # Class to allow operators to act the way we want on json
 # like results coming back from API calls and manipulations on those objects
