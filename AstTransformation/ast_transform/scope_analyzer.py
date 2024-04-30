@@ -84,6 +84,28 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.critical_dependencies = None
             self.concurrency_group_code = None
             self.concurrency_groups= None
+            self.moduleBlackList = ['threading', 
+                                    'io', 
+                                    'os', 
+                                    'sys', 
+                                    'subprocess', 
+                                    'coroutines', 
+                                    'socket', 
+                                    'shutil',
+                                    'fcntl', 
+                                    'events',
+                                    'runners',
+                                    'mmap', 
+                                    'tempfile', 
+                                    'pickle', 
+                                    'eval', 
+                                    'exec', 
+                                    'ctypes', 
+                                    'cffi',
+                                    'signal',
+                                    '_contextvars',
+                                    'contextvars']
+
         else:
             self.have_symbol_table = copy.have_symbol_table
             self.global_return_statement = copy.global_return_statement
@@ -101,6 +123,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.critical_dependencies = copy.critical_dependencies
             self.concurrency_group_code = None
             self.concurrency_groups= copy.concurrency_groups
+            self.moduleBlackList = copy.moduleBlackList
         
     def skip_visit(self, node):
         self.node_stack.append(node)
@@ -145,6 +168,20 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.node_stack.pop()
         return ret
         
+    def visit_Global(self, node):
+        raise ValueError("global statement is not safe")
+        self.generic_visit(node)
+        return node
+    
+    def visit_Assign(self, node):
+        for target in node.targets:
+                if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name):
+                    if target.value.id in ('os', 'sys', 'socket', 'builtins', 'io', 'asyncio'):
+                        raise ValueError("monkey patching detected")
+
+        self.generic_visit(node)
+        return node
+        
     def visit_FunctionDef(self, node):
         classParam=self.GetClassParameterName()
         self.def_class_param_stack.append(classParam)
@@ -168,7 +205,18 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
-           
+    def visit_Import(self, node):
+        for alias in node.names:
+            if alias.name in self.moduleBlackList:
+                raise ValueError("blacklisted module");
+        self.generic_visit(node)
+        return node
+
+    def visit_ImportFrom(self, node):
+         if node.module in self.moduleBlackList:
+            raise ValueError("blacklisted module");
+         self.generic_visit(node)         
+    
     def skip_visit_Name(self, node):        
         self.current_node_lookup.symbol=  self.get_variable_reference(node.id,  self.current_node_stack);
 

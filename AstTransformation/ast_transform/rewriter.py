@@ -178,17 +178,20 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         # => async def _concurrent_G0()
         for group_name in self.concurrency_group_code.keys():
+            isAsync =  group_name != self.concurrency_groups[0]
             function_def=self.MakeFunctionDef(          
                 self.functionPrefix+group_name,
-                self.concurrency_group_code[group_name])
+                self.concurrency_group_code[group_name],
+                isAsync)
 
             new_body_statements.append(function_def)
                 
         # => async def _completion__0()
         for orc_call in self.concurrency_completion_code.keys():
-            function_def=self.MakeFunctionDef(          
+            function_def=self.MakeAsyncFunctionDef(          
                 self.completionPrefix+orc_call,
-                self.concurrency_completion_code[orc_call])
+                self.concurrency_completion_code[orc_call],
+                isAsync = True)
 
             new_body_statements.append(function_def)
 
@@ -212,7 +215,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         # => return _return_value
         new_body_statements.append(ast.Return(self.MakeLoadName(self.return_value_name)))
 
-        # => async def Program()
+        # => def Program()
         program = function_def=self.MakeFunctionDef(          
                     self.programFunction,
                     new_body_statements)
@@ -294,7 +297,8 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     def MakeStoreName(self, name):
         return ast.Name(id=name, ctx=ast.Store())
             
-    def MakeFunctionDef(self, name, body):
+    
+    def MakeFunctionDef(self, name, body, isAsync=False):
         args = ast.arguments(                
             posonlyargs=[],
             args=[],
@@ -305,14 +309,24 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             kwarg=None
         )
 
-        function_def = ast.AsyncFunctionDef(
-            name=name,
-            args=args,
-            body=body or [ast.Pass()],
-            decorator_list=[],
-            returns=None,
-            type_comment=None
-        )
+        if isAsync:
+            function_def = ast.AsyncFunctionDef(
+                name=name,
+                args=args,
+                body=body or [ast.Pass()],
+                decorator_list=[],
+                returns=None,
+                type_comment=None
+            )
+        else:
+            function_def = ast.FunctionDef(
+                name=name,
+                args=args,
+                body=body or [ast.Pass()],
+                decorator_list=[],
+                returns=None,
+                type_comment=None
+            )
         
         return function_def
     

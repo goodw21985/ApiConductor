@@ -1,7 +1,8 @@
 import orchestrator
+from asyncio import create_task
 
 
-async def _program():
+def _program():
     _await_set_G2 = {'__3', '__5'}
     __1 = None
     __2 = None
@@ -17,11 +18,11 @@ async def _program():
     sum = None
     sum2 = None
 
-    async def _concurrent_G0():
+    def _concurrent_G0():
         nonlocal __1, q
         pass
         q = 3
-        __1 = orchestrator.search_email(q, 0)
+        __1 = create_task(orchestrator.search_email(q, 0))
         orchestrator._add_task(__1, _concurrent_G1)
 
     async def _concurrent_G1():
