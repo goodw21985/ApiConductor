@@ -4,12 +4,14 @@ from . import scope_analyzer
 
 class Rewriter(scope_analyzer.ScopeAnalyzer):
     orchestrator = "orchestrator"
+    orchestratorModule = "orchestrator"
+    orchestratorClass = "Orchestrator"
     returnFunction = "Return"
     programFunction = "_program"
     functionPrefix = "_concurrent_"
     completionPrefix = "_completion"
     functionAddTask = '_add_task'
-    return_value_name = '__return_value'
+    return_value_name = '_return_value'
     functionDispatch = '_dispatch'
     setPrefix = '_await_set_'
     def __init__(self, copy):
@@ -49,6 +51,8 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         call =  ast.Call(func=function_call, args=new_args, keywords=new_keywords)
 
+        # => _1 = orchestrator.search_email(q, 0)
+
         group = self.current_node_lookup.concurrency_group
         groupname = group.name
         unique_name = self.MakeUniqueName(node)
@@ -66,7 +70,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         else:
             delegate = self.completionPrefix+unique_name
        
-        # => orchestrator.add_task(__1, _completion__1)
+        # => orchestrator.add_task(_1, _completion__1)
         add_task_call = ast.Call(
             func=ast.Attribute(
                 value=ast.Name(id=self.orchestrator, ctx=ast.Load()), 
@@ -74,7 +78,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 ctx=ast.Load()
             ),
             args=[
-                ast.Name(id='__1', ctx=ast.Load()),  # First argument '__1'
+                ast.Name(id=unique_name, ctx=ast.Load()),  # First argument '__1'
                 ast.Name(id=delegate, ctx=ast.Load())  # Second argument '_completion__1'
             ],
             keywords=[]  # No keyword arguments
@@ -188,7 +192,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 
         # => async def _completion__0()
         for orc_call in self.concurrency_completion_code.keys():
-            function_def=self.MakeAsyncFunctionDef(          
+            function_def=self.MakeFunctionDef(          
                 self.completionPrefix+orc_call,
                 self.concurrency_completion_code[orc_call],
                 isAsync = True)
@@ -215,11 +219,12 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         # => return _return_value
         new_body_statements.append(ast.Return(self.MakeLoadName(self.return_value_name)))
 
-        # => def Program()
+        # => def _program():
         program = function_def=self.MakeFunctionDef(          
                     self.programFunction,
                     new_body_statements)
 
+        # => orchestrator.Return(_program())
         call_program = ast.Call(func = ast.Name(self.programFunction),args=[],keywords=[])
         call_return = ast.Call(
                             func=ast.Attribute(
@@ -230,9 +235,25 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                             args=[call_program],  # Argument list
                             keywords=[]  # No keyword arguments
                         )
-        module_statements = [
-            ast.Import(names=[ast.alias(name=self.orchestrator, asname=None)]),
+        
+        # => orchestrator = orchestrator.Orchestrator()
+        intantiated_class = ast.Name(id=self.orchestrator, ctx=ast.Store())
+        
+        instantiation = ast.Call(
+            func=ast.Attribute(value=ast.Name(id=self.orchestratorModule, ctx=ast.Load()), attr=self.orchestratorClass, ctx=ast.Load()),
+            args=[],
+            keywords=[],
+            starargs=None,
+            kwargs=None
+        )
 
+        # => import orchestrator
+        # => orchestrator = orchestrator.Orchestrator()
+        # => def _program():
+        # => orchestrator.Return(_program())
+        module_statements = [
+            ast.Import(names=[ast.alias(name=self.orchestratorModule, asname=None)]),
+            ast.Assign(targets=[intantiated_class], value=instantiation),
             program,
             ast.Expr(call_return)
             ]
@@ -332,7 +353,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     
     def MakeUniqueName(self, node=None):
         self.unique_name_id+=1
-        name = "__"+str(self.unique_name_id)
+        name = "_"+str(self.unique_name_id)
         if node != None:
             self.unique_names[node]=name
         return name

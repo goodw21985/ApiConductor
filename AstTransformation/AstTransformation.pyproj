@@ -40,7 +40,8 @@
     <Compile Include="ast_transform\astor\string_repr.py" />
     <Compile Include="ast_transform\astor\tree_walk.py" />
     <Compile Include="ast_transform\astor\__init__.py" />
-    <Compile Include="ast_transform\orchestrator.py" />
+    <Compile Include="ast_transform\safetyold.py" />
+    <Compile Include="ast_transform\orchestratorold.py" />
     <Compile Include="ast_transform\null_analyzer.py" />
     <Compile Include="ast_transform\dependency_analyzer.py" />
     <Compile Include="ast_transform\dispatch.py" />

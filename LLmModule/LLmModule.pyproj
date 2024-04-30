@@ -13,6 +13,10 @@
     <RootNamespace>LLmModule</RootNamespace>
     <IsWindowsApplication>False</IsWindowsApplication>
     <InterpreterId>Global|PythonCore|3.12</InterpreterId>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
+    <Environment>
+    </Environment>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -24,6 +28,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="orchestrator.py" />
+    <Compile Include="safety.py" />
+    <Compile Include="test - Copy.py" />
     <Compile Include="test.py" />
     <Compile Include="__init__.py" />
   </ItemGroup>

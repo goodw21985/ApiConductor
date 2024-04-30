@@ -27,9 +27,9 @@ return c
 """
 
 
-validate={"_concurrent_G0": ["q", "__1", ["search_email"]],
-   "_concurrent_G1": ["a", "sum", "sum2", "__2", "__4", "__3", "__5",["search_meetings", "search_teams"]],
-   "_concurrent_G2": ["b","c","__return_value"],
+validate={"_concurrent_G0": ["q", "_1", ["search_email"]],
+   "_concurrent_G1": ["a", "sum", "sum2", "_2", "_4", "_3", "_5",["search_meetings", "search_teams"]],
+   "_concurrent_G2": ["b","c","_return_value"],
    }
 
 class TestRewriterModule(unittest.TestCase):

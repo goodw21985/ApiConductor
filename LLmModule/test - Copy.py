@@ -23,7 +23,7 @@ def _program():
         pass
         q = 3
         _1 = orchestrator.search_email(q, 0)
-        orchestrator._add_task(_1, _concurrent_G1)
+        orchestrator._add_task(__1, _concurrent_G1)
 
     async def _concurrent_G1():
         nonlocal _1, _2, _3, _4, _5, a, a2, q, sum, sum2
@@ -34,9 +34,9 @@ def _program():
         _2 = sum + 1
         _4 = sum2 + 1
         _3 = orchestrator.search_meetings(_2)
-        orchestrator._add_task(_3, _completion_3)
+        orchestrator._add_task(__1, _completion_3)
         _5 = orchestrator.search_teams(b=_4)
-        orchestrator._add_task(_5, _completion_5)
+        orchestrator._add_task(__1, _completion_5)
 
     async def _concurrent_G2():
         nonlocal _3, _5, _return_value, a, b, c, q, sum, sum2
