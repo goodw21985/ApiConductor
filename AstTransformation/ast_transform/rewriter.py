@@ -288,19 +288,21 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         )))
 
         # if not _await_set_G1 : await _concurrent_G1() 
+        
+        call = ast.Call(func=ast.Name(id=self.functionPrefix+triggered.name, ctx=ast.Load()),
+            args=[],
+            keywords=[])
+
+        if self.config.useAsync:
+            call = self.DoWait(call)        
+
         statements.append(ast.If(
             test=ast.UnaryOp(
                 op=ast.Not(),
                 operand=ast.Name(id=setname, ctx=ast.Load())
             ),
             body=[
-                ast.Expr(
-                    value=self.DoWait(ast.Call(
-                        func=ast.Name(id=self.functionPrefix+triggered.name, ctx=ast.Load()),
-                        args=[],
-                        keywords=[]
-                    ))
-                )
+                ast.Expr(value=call)
             ],
             orelse=[]
         ))

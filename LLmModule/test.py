@@ -48,13 +48,13 @@ def _program():
         nonlocal _await_set_G2
         _await_set_G2.remove('_3')
         if not _await_set_G2:
-            _concurrent_G2().Result
+            _concurrent_G2()
 
     def _completion_5():
         nonlocal _await_set_G2
         _await_set_G2.remove('_5')
         if not _await_set_G2:
-            _concurrent_G2().Result
+            _concurrent_G2()
     orchestrator._dispatch(_concurrent_G0)
     return _return_value
 

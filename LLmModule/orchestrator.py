@@ -23,11 +23,7 @@ class Orchestrator:
         time.sleep(1)  # Wait for one second
         task.Result = val
         self.signal_queue.put(task)
-        with self.lock:
-            fn = self._task_dispatch[task]
-        fn()
         
-
     def delayed_response(self, val):
         # Create a thread and start it
         task = Task()
@@ -62,6 +58,7 @@ class Orchestrator:
             with self.lock:
                 fn = self._task_dispatch[task]
             fn()
+        
             self.signal_queue.task_done()  # Mark the signal as processed
 
             # Remove the completed task from the list
