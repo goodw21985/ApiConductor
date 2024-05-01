@@ -1,4 +1,5 @@
 import ast
+from genericpath import samefile
 
 #
 # a symbol table is a dictionary with the key of the symbol and the value of SymbolTableEntry
@@ -62,51 +63,61 @@ class NodeCrossReference:
         self.reassigned = None         # name of expression if assigned to newly created variable
         self.dependecyVisited = False  # used to identify nodes not followed in dependency analysis
 
+class Config:
+    def __init__(self):
+        self.useAsync=False
+        self.awaitableFunctions=[]
+        self.moduleBlackList=None
+        
 # This is the base class for the llmPython AST walker, and it keeps track of symbol tables and cross references implicitly
 #    
 class ScopeAnalyzer(ast.NodeTransformer):
     def __init__(self, copy = None):
         self.passName = None
 
-        if copy == None:
-            self.symbol_table_stack = None  # no symbol table stack exists before VariablesAnalyzer is being or has been run
-            self.symbol_table = None
-            self.node_stack = [] 
-            self.current_node_stack = []
-            self.isLambdaCount=0       
-            self.class_symbols_stack = []
-            self.def_class_param_stack = []
-            self.nodelookup = {}
-            self.critical_nodes = None
-            self.have_symbol_table = False
-            self.global_return_statement = None
-            self.tracking=None
-            self.critical_dependencies = None
-            self.concurrency_group_code = None
-            self.concurrency_groups= None
-            self.moduleBlackList = ['threading', 
-                                    'io', 
-                                    'os', 
-                                    'sys', 
-                                    'subprocess', 
-                                    'coroutines', 
-                                    'socket', 
-                                    'shutil',
-                                    'fcntl', 
-                                    'events',
-                                    'runners',
-                                    'mmap', 
-                                    'tempfile', 
-                                    'pickle', 
-                                    'eval', 
-                                    'exec', 
-                                    'ctypes', 
-                                    'cffi',
-                                    'signal',
-                                    '_contextvars',
-                                    'contextvars']
-
+        self.symbol_table_stack = None  # no symbol table stack exists before VariablesAnalyzer is being or has been run
+        self.symbol_table = None
+        self.node_stack = [] 
+        self.current_node_stack = []
+        self.isLambdaCount=0       
+        self.class_symbols_stack = []
+        self.def_class_param_stack = []
+        self.nodelookup = {}
+        self.critical_nodes = None
+        self.have_symbol_table = False
+        self.global_return_statement = None
+        self.tracking=None
+        self.critical_dependencies = None
+        self.concurrency_group_code = None
+        self.concurrency_groups= None
+        self.moduleBlackList = ['threading', 
+                                'io', 
+                                'os', 
+                                'sys', 
+                                'subprocess', 
+                                'coroutines', 
+                                'socket', 
+                                'shutil',
+                                'fcntl', 
+                                'events',
+                                'runners',
+                                'mmap', 
+                                'tempfile', 
+                                'pickle', 
+                                'eval', 
+                                'exec', 
+                                'ctypes', 
+                                'cffi',
+                                'signal',
+                                '_contextvars',
+                                'contextvars']
+        if isinstance(copy, Config):
+            self.moduleBlackList = copy.moduleBlackList or self.moduleBlackList
+            self.config=copy
+        elif copy == None:
+            pass
         else:
+            self.config = copy.config
             self.have_symbol_table = copy.have_symbol_table
             self.global_return_statement = copy.global_return_statement
             self.symbol_table = copy.symbol_table

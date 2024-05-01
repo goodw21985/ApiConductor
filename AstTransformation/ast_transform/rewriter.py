@@ -14,6 +14,9 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     return_value_name = '_return_value'
     functionDispatch = '_dispatch'
     setPrefix = '_await_set_'
+    resultName = "Result"
+    taskFunction = "Task"
+    taskClass = "Task"
     def __init__(self, copy):
         super().__init__(copy) 
         self.unique_name_id = 0
@@ -107,7 +110,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         if parent_group not in self.concurrency_group_nonlocals:
             self.concurrency_group_nonlocals[parent_group]=set([])
         self.concurrency_group_nonlocals[parent_group].add(unique_name)
-        return ast.Await(value = self.MakeLoadName(unique_name))
+        return self.DoWait(self.MakeLoadName(unique_name))
             
     def place(self, orig, node):
         if isinstance(node, ast.Name):
@@ -190,7 +193,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             function_def=self.MakeFunctionDef(          
                 self.functionPrefix+group_name,
                 self.concurrency_group_code[group_name],
-                isAsync=True)
+                isAsync=self.config.useAsync)
 
             new_body_statements.append(function_def)
                 
@@ -199,7 +202,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             function_def=self.MakeFunctionDef(          
                 self.completionPrefix+orc_call,
                 self.concurrency_completion_code[orc_call],
-                isAsync = True)
+                isAsync = self.config.useAsync)
 
             new_body_statements.append(function_def)
 
@@ -291,7 +294,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             ),
             body=[
                 ast.Expr(
-                    value=ast.Await(ast.Call(
+                    value=self.DoWait(ast.Call(
                         func=ast.Name(id=self.functionPrefix+triggered.name, ctx=ast.Load()),
                         args=[],
                         keywords=[]
@@ -317,6 +320,14 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     def MakeStoreName(self, name):
         return ast.Name(id=name, ctx=ast.Store())
             
+    def DoWait(self, node):
+        if self.config.useAsync:
+            return ast.Await(value = node)
+        else:
+            return ast.Attribute(
+                value=node,
+                attr= self.resultName,
+                ctx=ast.Load())
     
     def MakeFunctionDef(self, name, body, isAsync=False):
         args = ast.arguments(                
@@ -351,15 +362,26 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         return function_def
     
     def MakeTask(self, node):
-        return ast.Call(
-            func=ast.Attribute(
-                value=ast.Name(id='asyncio', ctx=ast.Load()),
-                attr='create_task',
-                ctx=ast.Load()
-            ),
-            args=[node],
-            keywords=[]
-        )
+        if self.config.useAsync:
+            return ast.Call(
+                func=ast.Attribute(
+                    value=ast.Name(id='asyncio', ctx=ast.Load()),
+                    attr='create_task',
+                    ctx=ast.Load()
+                ),
+                args=[node],
+                keywords=[]
+            )
+        else:
+            return ast.Call(
+                func=ast.Attribute(
+                    value=ast.Name(self.orchestrator, ctx=ast.Load()),
+                    attr=self.taskFunction,
+                    ctx=ast.Load()
+                ),                
+                args=[node],
+                keywords=[]
+            )
     
     def MakeRun(self, node):
         return ast.Call(

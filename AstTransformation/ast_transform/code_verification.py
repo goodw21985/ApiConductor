@@ -6,22 +6,9 @@ from ast_transform import astor
 from ast_transform import rewriter
 
 class VerificationVisitor(ast.NodeVisitor):
-    # copied from rewriter
-    orchestrator = "orchestrator"
-    orchestratorModule = "orchestrator"
-    orchestratorClass = "Orchestrator"
-    returnFunction = "Return"
-    programFunction = "_program"
-    functionPrefix = "_concurrent_"
-    completionPrefix = "_completion"
-    functionAddTask = '_add_task'
-    return_value_name = '_return_value'
-    functionDispatch = '_dispatch'
-    setPrefix = '_await_set_'
-
 
     # functionDef entry point if arguments != None
-    def __init__(self, node, arguments=None, level = 0):
+    def __init__(self, node, config, arguments=None, level = 0):
         self.arguments = arguments      # arguments to this functionDef, or null
         self.assignments = {}           # all variables assigned to 
         self.statements = []            # all statements without assignments, or if or loops
@@ -35,6 +22,7 @@ class VerificationVisitor(ast.NodeVisitor):
         self.children = {}              # child VerificationVisitor for each function defined
         self.add_tasks = []             # every call to orcgestrator add_tasks is logged here
         self.called_functions= []       # every paramaterless call to a local function is is logged here
+        self.config=config
         if level==0:
             self.inLocalFunction=False
             self.visit(node)
@@ -42,7 +30,7 @@ class VerificationVisitor(ast.NodeVisitor):
                 raise ValueError("top level requires exactly one function defined for the program")
             funcDefName = next(iter(self.defs.keys()))
             funcDef = self.defs[funcDefName]
-            self.children[funcDefName] = VerificationVisitor(funcDef.body, funcDef.args, 1)
+            self.children[funcDefName] = VerificationVisitor(funcDef.body, config, funcDef.args, 1)
 
         elif level==1:
             self.inLocalFunction=False
@@ -51,12 +39,21 @@ class VerificationVisitor(ast.NodeVisitor):
 
             for funcDefName in self.defs.keys():
                 funcDef = self.defs[funcDefName]
-                self.children[funcDefName] = VerificationVisitor(funcDef.body, funcDef.args, 2)
+                self.children[funcDefName] = VerificationVisitor(funcDef.body, config, funcDef.args, 2)
         else:
             self.inLocalFunction=True
             for sub in node:
                 self.visit(sub)
      
+    def visit_Attribute(self, node):
+        if isinstance(node.value, ast.Name):
+            id = node.attr
+            if node.attr == rewriter.Rewriter.resultName:
+                self.awaitednames.add(node.value.id)
+                return
+    
+        self.generic_visit(node)
+
     def visit_Await(self, node):
         if isinstance(node.value, ast.Name):
             if self.inLocalFunction:
@@ -69,7 +66,7 @@ class VerificationVisitor(ast.NodeVisitor):
             raise ValueError("can only await ast.Name or empty function calls")
     
     def visit_Name(self, node):
-        if node.id == self.orchestrator:
+        if node.id == rewriter.Rewriter.orchestrator:
             return
         if node.id == "asyncio":
             return
@@ -130,8 +127,12 @@ class VerificationVisitor(ast.NodeVisitor):
         if isinstance(node, ast.Call):
             if isinstance(node.func, ast.Attribute):
                 if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
-                    if node.func.attr == "create_task" and node.func.value.id=="asyncio":
-                        return True
+                    if self.config.useAsync:
+                        if node.func.attr == "create_task" and node.func.value.id=="asyncio":
+                            return True
+                    else:
+                        if node.func.attr == rewriter.Rewriter.taskFunction and node.func.value.id==rewriter.Rewriter.orchestrator:
+                            return True
                     
         return False
         
@@ -142,8 +143,8 @@ class VerificationVisitor(ast.NodeVisitor):
         if isinstance(self.statement, ast.Assign):
             if self.IsTaskCall(self.statement.value):
                 child = self.statement.value.args[0]
-
                 isAssignChild = child == node
+
         elif isinstance(self.statement, ast.Expr):
             isExprChild = self.statement.value == node
             
@@ -154,7 +155,7 @@ class VerificationVisitor(ast.NodeVisitor):
             name = node.func.attr
             self.async_calls.add(name)
             
-            if not isAssignChild and not isExprChild and name!=self.orchestratorClass:
+            if not isAssignChild and not isExprChild and name!=rewriter.Rewriter.orchestratorClass and name!=rewriter.Rewriter.taskClass:
                 raise ValueError("orchestrator functions must be assigned as task or in expr statements")
             
             if name == rewriter.Rewriter.functionAddTask:
@@ -164,6 +165,9 @@ class VerificationVisitor(ast.NodeVisitor):
                 if not isinstance(arg, ast.Name) and not isinstance(arg, ast.Constant):
                     if isinstance(arg, ast.Call) and isinstance(arg.func, ast.Name) and arg.func.id == rewriter.Rewriter.programFunction:
                         # allow orchestrator.Return(_program())
+                        pass
+                    elif name==rewriter.Rewriter.taskFunction:
+                        # Task() is allowed
                         pass
                     else:
                         raise ValueError("orchestrator function arguments must be ast.Name")
@@ -254,8 +258,8 @@ class VerificationVisitor(ast.NodeVisitor):
         child.validateAll(validate)
 
 class CodeVerification:
-    def __init__(self,tree, validate):
-        self.root = VerificationVisitor(tree)
+    def __init__(self,tree, config, validate):
+        self.root = VerificationVisitor(tree, config)
         self.root.validateBase(validate)
         
         

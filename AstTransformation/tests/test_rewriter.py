@@ -12,7 +12,10 @@ from ast_transform import code_verification
 from unittest.mock import patch
 import io
 
-awaitable_functions = ["search_email", "search_teams","search_meetings"]
+config = scope_analyzer.Config()
+config.awaitableFunctions= ["search_email", "search_teams","search_meetings"]
+config.moduleBlackList=None
+config.useAsync=False
 
 source_code = """
 pass
@@ -43,7 +46,7 @@ class TestRewriterModule(unittest.TestCase):
 
         tree = ast.parse(code)
             
-        analyzer1 = variables_analyzer.Scan(tree, awaitable_functions)
+        analyzer1 = variables_analyzer.Scan(tree, config)
         analyzer2 = dependency_analyzer.Scan(tree, analyzer1)
         analyzer3 = splitter_analyzer.Scan(tree, analyzer2)
         rewrite= rewriter.Scan(tree, analyzer3)
@@ -52,7 +55,7 @@ class TestRewriterModule(unittest.TestCase):
 
         with open("C:/repos/llmPython/LLmModule/test.py", 'w') as file:
             file.write(result)  
-        verify = code_verification.CodeVerification(rewrite, validate)       
+        verify = code_verification.CodeVerification(rewrite, config, validate)       
         
 if __name__ == '__main__':
     unittest.main()

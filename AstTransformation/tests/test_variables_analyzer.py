@@ -123,6 +123,11 @@ def walk(t, pre=""):
                 for y in v[x]:
                     print(f"{pre}| {rename[x]} {Nodes(y)}")
 
+config = scope_analyzer.Config()
+config.awaitableFunctions= []
+config.moduleBlackList=None
+config.useAsync=False
+
 
 class TestVariablesAnalyzerModule(unittest.TestCase):
     @patch('sys.stdout', new_callable=io.StringIO)
@@ -130,7 +135,7 @@ class TestVariablesAnalyzerModule(unittest.TestCase):
         # Test your function here
         tree = ast.parse(source_code)
 
-        analyzer1= variables_analyzer.Scan(tree, [])
+        analyzer1= variables_analyzer.Scan(tree, config)
         walk(analyzer1.symbol_table)
         result=mock_stdout.getvalue().strip()
         self.assertEqual(result, expected.strip())

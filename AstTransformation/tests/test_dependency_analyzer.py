@@ -118,6 +118,12 @@ def walk(analyzer2: dependency_analyzer.DependencyAnalyzer):
             pass
     pass
 
+config = scope_analyzer.Config()
+config.awaitableFunctions= ["search_email", "search_teams","search_meetings"]
+config.moduleBlackList=None
+config.useAsync=False
+
+
 class TestDependencyAnalyzerModule(unittest.TestCase):
     def test_simple(self):
         result=self.get(source_code)
@@ -134,7 +140,7 @@ class TestDependencyAnalyzerModule(unittest.TestCase):
             print()
 
             tree = ast.parse(code)
-            analyzer1 = variables_analyzer.Scan(tree, awaitable_functions)
+            analyzer1 = variables_analyzer.Scan(tree, config)
             analyzer2 = dependency_analyzer.Scan(tree, analyzer1)
             walk(analyzer2)
             result=mock_stdout.getvalue().strip()

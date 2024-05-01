@@ -2,12 +2,12 @@ import ast
 from . import scope_analyzer
 
 class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
-    def __init__(self, implicitly_async_functions, copy):
+    def __init__(self, config, copy):
         super().__init__(copy) 
+        self.config=config
         self.symbol_table_stack = []
         self.symbol_table_stack.append({})
         self.symbol_table = self.symbol_table_stack[-1];
-        self.implicitly_async_functions = implicitly_async_functions
         self.critical_nodes =[]
         self.global_return_statement = None
         self.passName="variables"
@@ -15,7 +15,7 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
 
     def visit_Name2(self, node):
         name = node.id
-        if node.id in self.implicitly_async_functions and isinstance(node.ctx, ast.Store):
+        if node.id in self.config.awaitableFunctions and isinstance(node.ctx, ast.Store):
             # if a variable name is modified that has the same name as an awaitable function, remove that function  from the list
             raise ValueError(f"{node.id} is assigned, and is also the name of a protected function");
         group = scope_analyzer.SymbolTableEntry.attr_read
@@ -35,7 +35,7 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
     # looking for implicit async function usage.
     def visit_Call2(self, node):
        if isinstance(node.func, ast.Name):
-            if (node.func.id in self.implicitly_async_functions): 
+            if (node.func.id in self.config.awaitableFunctions): 
                 if self.ConcurrencySafeContext(self.node_stack):
                     self.critical_nodes.append(node)
        return node
@@ -142,8 +142,8 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                 return False
         return None
       
-def Scan(tree, implicitly_async_functions, parent=None):
-    analyzer = VariablesAnalyzer(implicitly_async_functions, parent)
+def Scan(tree, config, parent=None):
+    analyzer = VariablesAnalyzer(config, parent)
     analyzer.visit(tree)
     return analyzer
 
