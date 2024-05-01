@@ -1,56 +1,73 @@
 import safety
-from asyncio import sleep
-from asyncio import wait
-from asyncio import BaseEventLoop
-from asyncio import get_event_loop
-from asyncio import FIRST_COMPLETED
-from asyncio import create_task
+import threading
+import time
 import io
+import queue
 
+class Task:
+    def __init__(self):
+        self.Result = None
+        
 class Orchestrator:
     def __init__(self):
         self._task_dispatch = {}
         self._task_list = []
-        self.loop = get_event_loop()
-    
-    # client accessable functions 
-    
-    async def search_email(self, a=0, b=0):
-        await sleep(1)
-        return str(a)+ "1"
+        self.taskLookup= {}
+        self.lock = threading.Lock()
+        self.signal_queue = queue.Queue()
 
-    async def search_meetings(self, a=0, b=0):
-        await sleep(1)
-        return str(a)+"2"
+    def Task(self, node):
+        return node
+    
+    def _completion(self, task, val):
+        time.sleep(1)  # Wait for one second
+        task.Result = val
+        self.signal_queue.put(task)
+        with self.lock:
+            fn = self._task_dispatch[task]
+        fn()
+        
 
-    async def search_teams(self, a=0, b=0):
-        await sleep(1)
-        return str(b)+"3"
+    def delayed_response(self, val):
+        # Create a thread and start it
+        task = Task()
+        thread = threading.Thread(target=self._completion, args=(task,val))
+        thread.start()    # client accessable functions 
+        return task
+    
+    def search_email(self, a=0, b=0):
+        return self.delayed_response(str(a)+ "1")
+
+    def search_meetings(self, a=0, b=0):
+        return self.delayed_response(str(a)+"2")
+
+    def search_teams(self, a=0, b=0):
+        return self.delayed_response(str(b)+"3")
 
     def Return(self, a):
         print(a)
 
     # dispatch loop functions for concurrency
     def _add_task(self, task, dispatch):
-        self._task_dispatch[task]=dispatch
-        self._task_list.append(task)
-
-    def _dispatch(self, first):
-        try:
-            self.loop.run_until_complete(self._async_dispatch(first))
-        finally:
-            self.loop.close()
+        with self.lock:
+            self._task_dispatch[task]=dispatch
+            self._task_list.append(task)
     
-    async def _async_dispatch(self, first):
-        await first()
-        while self._task_list:
-            done, _ = await wait(self._task_list, return_when=FIRST_COMPLETED)
-            # Handle completed tasks
-            for task in done:
-                await self._task_dispatch[task]()
+    def _dispatch(self, first):
+        first()
+        with self.lock:
+            notDone = self._task_list
+        while notDone:
+            task = self.signal_queue.get()  # Wait for a signal
+            with self.lock:
+                fn = self._task_dispatch[task]
+            fn()
+            self.signal_queue.task_done()  # Mark the signal as processed
 
-                # Remove the completed task from the list
+            # Remove the completed task from the list
+            with self.lock:
                 self._task_list.remove(task)
+                notDone = self._task_list
 
 # Class to allow operators to act the way we want on json
 # like results coming back from API calls and manipulations on those objects

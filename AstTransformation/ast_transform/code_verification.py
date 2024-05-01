@@ -141,9 +141,12 @@ class VerificationVisitor(ast.NodeVisitor):
         isAssignChild= False
         isExprChild= False
         if isinstance(self.statement, ast.Assign):
-            if self.IsTaskCall(self.statement.value):
-                child = self.statement.value.args[0]
-                isAssignChild = child == node
+            if self.config.useAsync:
+                if self.IsTaskCall(self.statement.value):
+                    child = self.statement.value.args[0]
+                    isAssignChild = child == node
+            else:
+                isAssignChild = self.statement.value == node
 
         elif isinstance(self.statement, ast.Expr):
             isExprChild = self.statement.value == node
@@ -155,8 +158,9 @@ class VerificationVisitor(ast.NodeVisitor):
             name = node.func.attr
             self.async_calls.add(name)
             
-            if not isAssignChild and not isExprChild and name!=rewriter.Rewriter.orchestratorClass and name!=rewriter.Rewriter.taskClass:
-                raise ValueError("orchestrator functions must be assigned as task or in expr statements")
+            if self.config.useAsync:
+                if not isAssignChild and not isExprChild and name!=rewriter.Rewriter.orchestratorClass and name!=rewriter.Rewriter.taskClass:
+                    raise ValueError("orchestrator functions must be assigned as task or in expr statements")
             
             if name == rewriter.Rewriter.functionAddTask:
                 self.add_tasks.append([node.args[0].id, node.args[1].id])

@@ -52,9 +52,10 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             ctx=ast.Load()
         )
 
-        call1 =  ast.Call(func=function_call, args=new_args, keywords=new_keywords)
+        call =  ast.Call(func=function_call, args=new_args, keywords=new_keywords)
         
-        call = self.MakeTask(call1)
+        if (self.config.useAsync):
+            call = self.MakeTask(call) 
 
         # => _1 = asyncio.create_task(orchestrator.search_email(q, 0))
         

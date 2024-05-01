@@ -28,16 +28,9 @@ ALLOWED_MODULES = set([
     'math',
     'os',
     'warnings',
-    '_io',
-    'io',
     'socket',
     'sys',
     'base_events',
-    'collections',
-    'collections.abc',
-    'concurrent.futures',
-    'concurrent.futures._base',
-    'logging',
     'time',
     're',         # todo: Set Timeouts in re.match() and re.search()
     'traceback',  # todo: logging intercepts?
@@ -48,20 +41,32 @@ ALLOWED_MODULES = set([
     'atexit',
     'errno',
     'subprocess', # statically blacklisted from client code
+    'signal',
+    'locks',
+    'queues',
+    'threads',
+    'ast',
+    'io',
+    'queue',
+    'asyncio',
+    '_io',
+    'collections',
+    'collections.abc',
+    'concurrent.futures',
+    'concurrent.futures._base',
+    'logging',
     'functools',
     'heapq',
     'itertools',
     'stat',
     'ssl',
+    '',
     'enum',
     'inspect',
     'contextvars',
-    'contextlib',
     '_contextvars',
-    'signal',
     'reprlib',
-    '_asyncio',   # covered by monkey patching io and threads and sockets
-    'asyncio',    # covered by monkey patching io and threads and sockets
+    '_asyncio',
     'asyncio.events',
     'asyncio.base_futures',
     'asyncio.exceptions',
@@ -69,20 +74,18 @@ ALLOWED_MODULES = set([
     'linecache',
     'asyncio.coroutines',
     'log',
+    'contextlib',
     'typing',
     'coroutines',
     'events',
     'exceptions',
     'futures',
-    'locks',
     'protocols',
     'runners',
-    'queues',
     'streams',
     'tasks',
     'taskgroups',
     'timeouts',
-    'threads',
     'transports',
     'windows_events',
     '_overlapped',
@@ -91,65 +94,24 @@ ALLOWED_MODULES = set([
     'msvcrt',
     'struct',
     'selectors',
-    '_winapi',
-    'msvcrt',
     'tempfile',
-    'ast',
-    'django.utils.datastructures',
-    'django.forms',
-    'ctypes',
-    'tracemalloc',
-    '_tracemalloc',
-    'fnmatch',
-    'os.path',
-    'pickle',
-    '_pydev_bundle.pydev_monkey',
 ])
 # modules that can be loaded as "from . import X"
 ALLOWED_FROMLIST = set([
-    'DefaultEventLoopPolicy',
-    'constants',
-    'coroutines',
-    'events',
-    'format_helpers',
-    'base_futures',
-    'exceptions',
-    'futures',
-    'protocols',
-    'sslproto',
-    'transports',
-    'staggered',
-    'locks',
-    'mixins',
-    'tasks',
-    'base_tasks',
-    'timeouts',
-    'trsock',
-    'streams',
-    'base_subprocess',
-    'proactor_events',
-    'base_events',
-    'selector_events',
-    'base_events',
-    'windows_utils',
-
 ])
 
-# functions that can be imported as "from asyncio import X"
-# ALLOWED_ASYNCIO_FROMLIST = [
-#     "sleep", "wait"
-# ]
-
-
+m= set([])
 # Override the built-in __import__ function to enforce the whitelist
 def safe_import(name, globals=None, locals=None, fromlist=(), level=0):
     if name in ALLOWED_MODULES:
         return __hiddenImport(name, globals, locals, fromlist, level)
     elif name == "" and len(fromlist)==1 and fromlist[0] in ALLOWED_FROMLIST:
         return __hiddenImport(name, globals, locals, fromlist, level)
-    # elif name == "asyncio" and len(fromlist)==1 and fromlist[0] in ALLOWED_ASYNCIO_FROMLIST:
-    #    return __hiddenImport(name, globals, locals, fromlist, level)
     else: 
+        if not name in m:
+            m.add(name)
+            print(    "'"+name+"',")
+        return __hiddenImport(name, globals, locals, fromlist, level)
         # If the module is not in the whitelist, raise an ImportError
         raise ImportError(f"Import of module '{name}' is not allowed")
 
@@ -166,34 +128,18 @@ builtins.__import__ = safe_import
 # disable fileio
 builtins.open = disabled_FileIO
 
-import threading
-import asyncio
-import io
-
-threading.RLock = disabled_threading
-threading.Semaphore = disabled_threading
-threading.BoundedSemaphore = disabled_threading
-threading.Timer = disabled_threading
-
-# TODO, the following things cannot be disabled when using the debugger
-# if we want them disabled in production, we can make two versions of safety
-#threading.Thread = disabled_threading
-#threading.Lock = disabled_threading
-#threading.Condition = disabled_threading
-#threading.Event = disabled_threading
-
-
 # to allow socket library to be loaded safely, we need to effectively disable it
 # the alternative to monkey patching is to create a custom evem
-original_sock_connect = asyncio.BaseEventLoop.sock_connect
+# original_sock_connect = asyncio.BaseEventLoop.sock_connect
+# 
+# async def restricted_sock_connect(self, sock, address):
+#     host, port = address
+#     if host not in ["localhost", "127.0.0.1"]:  # Allow only local connections
+#         raise ConnectionError("External connections are disabled.")
+#     await original_sock_connect(self, sock, address)
+# 
+# asyncio.BaseEventLoop.sock_connect = restricted_sock_connect
 
-async def restricted_sock_connect(self, sock, address):
-    host, port = address
-    if host not in ["localhost", "127.0.0.1"]:  # Allow only local connections
-        raise ConnectionError("External connections are disabled.")
-    await original_sock_connect(self, sock, address)
-
-asyncio.BaseEventLoop.sock_connect = restricted_sock_connect
-
+import io
 io.FileIO = disabled_FileIO
 
