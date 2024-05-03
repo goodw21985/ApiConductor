@@ -6,13 +6,13 @@ import queue
 
 class Task:
     def __init__(self):
-        self.Result = None
+        self.result = None
         
 class Orchestrator:
     def __init__(self):
         self._task_dispatch = {}
         self._task_list = []
-        self.taskLookup= {}
+        self.task_lookup= {}
         self.lock = threading.Lock()
         self.signal_queue = queue.Queue()
 

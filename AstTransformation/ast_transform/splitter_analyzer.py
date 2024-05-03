@@ -18,7 +18,7 @@ class CriticalNodeDepenencyGroup():
 
 class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
     def __init__(self, copy):
-        self.passName = "splitter"
+        self.pass_name = "splitter"
         super().__init__(copy) 
         self.concurrency_groups = []
         self.critical_node_to_group = {}
@@ -28,7 +28,7 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
         for critical_node in self.critical_nodes:
             groups[critical_node]=CriticalNodeDepenencyGroup()
         for critical_node in self.critical_nodes:
-            nodec = self.nodelookup[critical_node]
+            nodec = self.node_lookup[critical_node]
             for dependent in nodec.dependency:
                 groups[dependent].node_dependencies.append(critical_node)
             groups[critical_node].grouped_critical_nodes.append(critical_node)
@@ -68,8 +68,8 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
         
             
     def assign_nodes_tocreate_concurrency_groups(self):
-        for node in self.nodelookup.keys():
-            nodec = self.nodelookup[node]
+        for node in self.node_lookup.keys():
+            nodec = self.node_lookup[node]
             groups = []
             for c in nodec.dependency:
                 g = self.critical_node_to_group[c]

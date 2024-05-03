@@ -20,7 +20,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     taskFunction = "Task"
     taskClass = "Task"
     def __init__(self, copy):
-        self.passName = "rewriter"
+        self.pass_name = "rewriter"
         super().__init__(copy) 
         self.unique_name_id = 0
         self.unique_names = {}
@@ -57,7 +57,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         call =  ast.Call(func=function_call, args=new_args, keywords=new_keywords)
         
-        if (self.config.useAsync):
+        if (self.config.use_async):
             call = self.MakeTask(call) 
 
         # => _1 = asyncio.create_task(orchestrator.search_email(q, 0))
@@ -111,7 +111,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             if isinstance(new_kw.value, ast.Name):
                 self.concurrency_group_nonlocals[groupname].add(new_kw.value.id)
           
-        parent_group = self.nodelookup[self.node_stack[-2]].concurrency_group.name
+        parent_group = self.node_lookup[self.node_stack[-2]].concurrency_group.name
         if parent_group not in self.concurrency_group_nonlocals:
             self.concurrency_group_nonlocals[parent_group]=set([])
         self.concurrency_group_nonlocals[parent_group].add(unique_name)
@@ -134,7 +134,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 return node
             if isinstance(node, ast.NameConstant):
                 return node
-        nodec = self.nodelookup[orig]
+        nodec = self.node_lookup[orig]
         groupname = nodec.concurrency_group.name
         unique_name = self.MakeUniqueName()
         assign = ast.Assign(targets=[self.MakeStoreName(unique_name)], value = node)
@@ -166,11 +166,11 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         if self.concurrency_groups[0]==None: raise ValueError("165")
         statement_group_name = self.concurrency_groups[0].name
         for statement in node.body:
-            if statement in self.nodelookup:
+            if statement in self.node_lookup:
                 # if we cannot find the statement, it is probably an 
                 # unreferenced statement..  perhaps for logging?
                 # add to previous group
-                statement_node_lookup = self.nodelookup[statement]
+                statement_node_lookup = self.node_lookup[statement]
                 self.statement_group = statement_node_lookup.concurrency_group
                 if self.statement_group==None: raise ValueError("174")
                 statement_group_name = self.statement_group.name
@@ -211,7 +211,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             function_def=self.MakeFunctionDef(          
                 self.functionPrefix+group_name,
                 self.concurrency_group_code[group_name],
-                isAsync=self.config.useAsync)
+                isAsync=self.config.use_async)
 
             new_body_statements.append(function_def)
                 
@@ -220,7 +220,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             function_def=self.MakeFunctionDef(          
                 self.completionPrefix+orc_call,
                 self.concurrency_completion_code[orc_call],
-                isAsync = self.config.useAsync)
+                isAsync = self.config.use_async)
 
             new_body_statements.append(function_def)
 
@@ -315,7 +315,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             args=[],
             keywords=[])
 
-        if self.config.useAsync:
+        if self.config.use_async:
             call = self.DoWait(call)        
 
         statements.append(ast.If(
@@ -346,7 +346,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         return ast.Name(id=name, ctx=ast.Store())
             
     def DoWait(self, node):
-        if self.config.useAsync:
+        if self.config.use_async:
             return ast.Await(value = node)
         else:
             return ast.Attribute(
@@ -378,7 +378,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         return function_def
     
     def MakeTask(self, node):
-        if self.config.useAsync:
+        if self.config.use_async:
             return ast.Call(
                 func=ast.Attribute(
                     value=ast.Name(id='asyncio', ctx=ast.Load()),

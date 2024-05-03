@@ -2,7 +2,7 @@
 import ast
 import sys
 from multiprocessing import Value
-from ast_transform import astor
+from ast_transform import astor_fork
 from ast_transform import rewriter
 
 class VerificationVisitor(ast.NodeVisitor):
@@ -14,7 +14,7 @@ class VerificationVisitor(ast.NodeVisitor):
         self.statements = []            # all statements without assignments, or if or loops
         self.async_calls = set([])      # all calls to orchestrator functions
         self.names=set([])              # list of symbols used
-        self.awaitednames=set([])       # list of symbols used with await
+        self.awaited_names=set([])       # list of symbols used with await
         self.async_names = set([])      # all variables that require await        
         self.nonlocals=set([])            # list of symbols that are nonlocal
         self.initialized=set([])        # list of symbols set to None before anything else
@@ -49,7 +49,7 @@ class VerificationVisitor(ast.NodeVisitor):
         if isinstance(node.value, ast.Name):
             id = node.attr
             if node.attr == rewriter.Rewriter.resultName:
-                self.awaitednames.add(node.value.id)
+                self.awaited_names.add(node.value.id)
                 return
     
         self.generic_visit(node)
@@ -59,7 +59,7 @@ class VerificationVisitor(ast.NodeVisitor):
             if self.inLocalFunction:
                 if node.value.id not in self.nonlocals:
                     raise ValueError("symbol not nonlocal")
-            self.awaitednames.add(node.value.id)
+            self.awaited_names.add(node.value.id)
         elif isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Name) and not node.value.args:
             pass
         else:
@@ -86,7 +86,7 @@ class VerificationVisitor(ast.NodeVisitor):
         for n in node.names:
             if n in self.names:
                 raise ValueError("nonlocals first")
-            if n in self.awaitednames:
+            if n in self.awaited_names:
                 raise ValueError("nonlocals first")
             self.nonlocals.add(n)
             
@@ -102,7 +102,7 @@ class VerificationVisitor(ast.NodeVisitor):
             self.visit_Call(node.value)
             if self.is_orchestrator_call:
                 symbol = node.targets[0].id
-                self.awaitednames.add(symbol)
+                self.awaited_names.add(symbol)
                 self.assignments[symbol] = node.targets
                 return
 
@@ -127,7 +127,7 @@ class VerificationVisitor(ast.NodeVisitor):
         if isinstance(node, ast.Call):
             if isinstance(node.func, ast.Attribute):
                 if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
-                    if self.config.useAsync:
+                    if self.config.use_async:
                         if node.func.attr == "create_task" and node.func.value.id=="asyncio":
                             return True
                     else:
@@ -141,7 +141,7 @@ class VerificationVisitor(ast.NodeVisitor):
         isAssignChild= False
         isExprChild= False
         if isinstance(self.statement, ast.Assign):
-            if self.config.useAsync:
+            if self.config.use_async:
                 if self.IsTaskCall(self.statement.value):
                     child = self.statement.value.args[0]
                     isAssignChild = child == node
@@ -158,7 +158,7 @@ class VerificationVisitor(ast.NodeVisitor):
             name = node.func.attr
             self.async_calls.add(name)
             
-            if self.config.useAsync:
+            if self.config.use_async:
                 if not isAssignChild and not isExprChild and name!=rewriter.Rewriter.orchestratorClass and name!=rewriter.Rewriter.taskClass:
                     raise ValueError("orchestrator functions must be assigned as task or in expr statements")
             
@@ -174,7 +174,6 @@ class VerificationVisitor(ast.NodeVisitor):
                         # Task() is allowed
                         pass
                     else:
-                        self.Log(arg, "arg is not a ast.Name")
                         raise ValueError("orchestrator function arguments must be ast.Name")
             for kw in node.keywords:
                 if not isinstance(kw.value, ast.Name) and not isinstance(kw.value, ast.Constant):
@@ -207,17 +206,17 @@ class VerificationVisitor(ast.NodeVisitor):
 
     def checkawait(self):
         names=set(self.names)                     # list of symbols used
-        awaitednames=set(self.awaitednames)       # list of symbols used with await
+        awaited_names=set(self.awaited_names)       # list of symbols used with await
         async_names = set( self.async_names)      # all variables that require await        
         for childname in self.children:
             child = self.children[childname]
             names |= child.names
-            awaitednames |= child.awaitednames
+            awaited_names |= child.awaited_names
             async_names |= child.async_names
         for name in names:
             if name in async_names:
                 raise ValueError("symbol is missing await")
-        for name in awaitednames:
+        for name in awaited_names:
             if name not in async_names:
                 raise ValueError("symbol should not be awaited")
 
@@ -298,7 +297,7 @@ class VerificationVisitor(ast.NodeVisitor):
          
     def Logprint(self, node, msg):
         #try:
-        s = astor.to_source(node).strip()
+        s = astor_fork.to_source(node).strip()
         if len(s)>20: s = s[0:20]+"..."
         #except Exception as e:
         #    s = str(e)

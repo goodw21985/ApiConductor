@@ -7,11 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "llmPython", "llmPython\llmP
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{31673C2F-CF63-4EDA-810C-94AAB68E3C3D}"
 EndProject
-Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "LLmModule", "LLmModule\LLmModule.pyproj", "{1923332C-83BA-4B79-8A42-2DD32AB4F528}"
-EndProject
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "AstTransformation", "AstTransformation\AstTransformation.pyproj", "{346A99D3-62AE-4BDE-8CD6-681338C2AB9A}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "C# Orchestrator", "C# Orchestrator\C# Orchestrator.csproj", "{5F623DC0-81F7-4EEC-91E2-8ED5A5082537}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,14 +19,8 @@ Global
 		{FDB48A11-3ED6-45A2-98F5-58617926DBC8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FDB48A11-3ED6-45A2-98F5-58617926DBC8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FDB48A11-3ED6-45A2-98F5-58617926DBC8}.Release|Any CPU.Build.0 = Release|Any CPU
-		{1923332C-83BA-4B79-8A42-2DD32AB4F528}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1923332C-83BA-4B79-8A42-2DD32AB4F528}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{346A99D3-62AE-4BDE-8CD6-681338C2AB9A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{346A99D3-62AE-4BDE-8CD6-681338C2AB9A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5F623DC0-81F7-4EEC-91E2-8ED5A5082537}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5F623DC0-81F7-4EEC-91E2-8ED5A5082537}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5F623DC0-81F7-4EEC-91E2-8ED5A5082537}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5F623DC0-81F7-4EEC-91E2-8ED5A5082537}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

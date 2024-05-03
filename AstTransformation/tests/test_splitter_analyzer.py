@@ -1,7 +1,7 @@
 import unittest
 
 import ast
-from ast_transform import astor
+from ast_transform import astor_fork
 
 from ast_transform import splitter_analyzer
 from ast_transform import dependency_analyzer
@@ -11,9 +11,9 @@ from unittest.mock import patch
 import io
 
 config = scope_analyzer.Config()
-config.awaitableFunctions= ["search_email", "search_teams","search_meetings"]
-config.moduleBlackList=None
-config.useAsync=False
+config.awaitable_functions= ["search_email", "search_teams","search_meetings"]
+config.module_blacklist=None
+config.use_async=False
 
 
 source_code = """
@@ -96,8 +96,8 @@ def walk_groups(analyzer2: dependency_analyzer.DependencyAnalyzer):
     for c in crit:
         try:
             gn = analyzer2.critical_node_to_group[c].name
-            code = astor.to_source(c).strip()
-            nodec = analyzer2.nodelookup[c]
+            code = astor_fork.to_source(c).strip()
+            nodec = analyzer2.node_lookup[c]
             result = ' '.join([named[item] for item in nodec.dependency])
 
             print(named[c] + " => " + gn + " used by ("+result+")"+" = "+ code)
@@ -123,16 +123,16 @@ def walk_nodes(analyzer2: dependency_analyzer.DependencyAnalyzer):
     for c in crit:
         try:
             gn = analyzer2.critical_node_to_group[c].name
-            code = astor.to_source(c).strip()
+            code = astor_fork.to_source(c).strip()
             print(gn + " = "+code)
         except Exception:
             pass
-    for n in analyzer2.nodelookup.keys():
-        nodec = analyzer2.nodelookup[n]
-        if not nodec.dependecyVisited:
+    for n in analyzer2.node_lookup.keys():
+        nodec = analyzer2.node_lookup[n]
+        if not nodec.dependency_visited:
             continue
         try:
-            code = astor.to_source(n).strip()
+            code = astor_fork.to_source(n).strip()
             result2 = ' '.join([named[item] for item in nodec.dependency])
             print(nodec.concurrency_group.name+": "+result2+" "+code)
         except Exception:

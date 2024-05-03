@@ -4,7 +4,7 @@ from . import scope_analyzer
 
 class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
     def __init__(self, copy):
-        self.passName = "dependency"
+        self.pass_name = "dependency"
         super().__init__(copy) 
 
     def visit_arguments(self, node):

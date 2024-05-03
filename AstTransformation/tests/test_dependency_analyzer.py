@@ -2,7 +2,7 @@ from tkinter import EXCEPTION
 import unittest
 
 import ast
-from ast_transform import astor
+from ast_transform import astor_fork
 
 from ast_transform import dependency_analyzer
 from ast_transform import variables_analyzer
@@ -102,14 +102,14 @@ def walk(analyzer2: dependency_analyzer.DependencyAnalyzer):
         named[c]= "C"+str(num)
         num+=1
         try:
-            code = astor.to_source(c).strip()
+            code = astor_fork.to_source(c).strip()
             print(named[c] + " = "+code)
         except Exception:
             pass
-    for n in analyzer2.nodelookup.keys():
-        nodec = analyzer2.nodelookup[n]
+    for n in analyzer2.node_lookup.keys():
+        nodec = analyzer2.node_lookup[n]
         try:
-            code = astor.to_source(n).strip()
+            code = astor_fork.to_source(n).strip()
             result = ' '.join([named[item] for item in nodec.dependency])
             if n in crit:
                 result = named[n]+ " => "+result
@@ -119,9 +119,9 @@ def walk(analyzer2: dependency_analyzer.DependencyAnalyzer):
     pass
 
 config = scope_analyzer.Config()
-config.awaitableFunctions= ["search_email", "search_teams","search_meetings"]
-config.moduleBlackList=None
-config.useAsync=False
+config.awaitable_functions= ["search_email", "search_teams","search_meetings"]
+config.module_blacklist=None
+config.use_async=False
 
 
 class TestDependencyAnalyzerModule(unittest.TestCase):

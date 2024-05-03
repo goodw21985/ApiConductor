@@ -1,6 +1,5 @@
 from re import X
 from ast_transform import Util
-from ast_transform import astor
 from ast_transform import transform
 from ast_transform import variables_analyzer
 import ast

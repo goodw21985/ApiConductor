@@ -20,7 +20,7 @@ import builtins
 
 # there is static code analysis outside of safety.py that also specifically
 # black lists some modules for client code, that otherwise can run, such as
-# sys, os, subprocess (see moduleBlackList)
+# sys, os, subprocess (see module_blacklist)
 
 
 # White listed modules
@@ -69,8 +69,6 @@ ALLOWED_MODULES = set([
 ALLOWED_FROMLIST = set([
 ])
 
-m=set([])
-
 # Override the built-in __import__ function to enforce the whitelist
 def safe_import(name, globals=None, locals=None, fromlist=(), level=0):
     if name in ALLOWED_MODULES:
@@ -78,12 +76,8 @@ def safe_import(name, globals=None, locals=None, fromlist=(), level=0):
     elif name == "" and len(fromlist)==1 and fromlist[0] in ALLOWED_FROMLIST:
         return __hiddenImport(name, globals, locals, fromlist, level)
     else: 
-        if name not in m:
-            m.add(name)
-            print("'"+name+"',")
-            return __hiddenImport(name, globals, locals, fromlist, level)
         # If the module is not in the whitelist, raise an ImportError
-  #      raise ImportError(f"Import of module '{name}' is not allowed")
+        raise ImportError(f"Import of module '{name}' is not allowed")
 
 def disabled_FileIO(*args, **kwargs):
     raise PermissionError("Access to the file system is disabled")

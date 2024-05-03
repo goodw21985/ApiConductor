@@ -2,7 +2,7 @@ from symtable import SymbolTable
 import unittest
 
 import ast
-from ast_transform import astor
+from ast_transform import astor_fork
 from ast_transform import scope_analyzer
 from ast_transform import variables_analyzer
 from unittest.mock import patch
@@ -105,7 +105,7 @@ def Nodes(list):
     
     return "#"+str(last.lineno)
     
-attr = [scope_analyzer.SymbolTableEntry.attr_read, scope_analyzer.SymbolTableEntry.attr_write, scope_analyzer.SymbolTableEntry.attr_read_write, scope_analyzer.SymbolTableEntry.attr_declared, scope_analyzer.SymbolTableEntry.attr_ambiguous]
+attr = [scope_analyzer.SymbolTableEntry.ATTR_READ, scope_analyzer.SymbolTableEntry.ATTR_WRITE, scope_analyzer.SymbolTableEntry.ATTR_READ_WRITE, scope_analyzer.SymbolTableEntry.ATTR_DECLARED, scope_analyzer.SymbolTableEntry.ATTR_AMBIGUOUS]
 
 rename = {"read":"r", "write":"w", "readwrite":"rw", "declared":":", "ambiguous":"m"}
 def walk(t, pre=""):
@@ -124,9 +124,9 @@ def walk(t, pre=""):
                     print(f"{pre}| {rename[x]} {Nodes(y)}")
 
 config = scope_analyzer.Config()
-config.awaitableFunctions= []
-config.moduleBlackList=None
-config.useAsync=False
+config.awaitable_functions= []
+config.module_blacklist=None
+config.use_async=False
 
 
 class TestVariablesAnalyzerModule(unittest.TestCase):

@@ -20,7 +20,7 @@ import builtins
 
 # there is static code analysis outside of safety.py that also specifically
 # black lists some modules for client code, that otherwise can run, such as
-# sys, os, subprocess (see moduleBlackList)
+# sys, os, subprocess (see module_blacklist)
 
 
 # White listed modules

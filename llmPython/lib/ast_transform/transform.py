@@ -5,20 +5,20 @@ from ast_transform import dependency_analyzer
 from ast_transform import variables_analyzer
 from ast_transform import scope_analyzer
 from ast_transform import code_verification
-from . import astor
+from . import astor_fork
 
 config = scope_analyzer.Config()
-config.awaitableFunctions= ["search_email", "search_teams","search_meetings"]
-config.moduleBlackList=None
-config.useAsync=False
-config.wrapInFunctionDef =True
+config.awaitable_functions= ["search_email", "search_teams","search_meetings"]
+config.module_blacklist=None
+config.use_async=False
+config.wrap_in_function_def =True
 
 def modify_code(code, config):
     if config.wrapInFunctionDef:
         wrapped_code = wrap_code_snippet(code)
         tree = ast.parse(wrapped_code)
         tree.body = tree.body[0].body
-        rresult = astor.to_source(tree).strip()
+        rresult = astor_fork.to_source(tree).strip()
         print(rresult)
     else:
         tree = ast.parse(wrapped_code)
