@@ -10,7 +10,7 @@ from ast_transform import scope_analyzer
 from unittest.mock import patch
 import io
 
-awaitable_functions = ["search_email", "search_teams","search_meetings"]
+awaitable_functions = ["search_email", "search_teams", "search_meetings"]
 
 source_code2 = """
 q=3
@@ -21,7 +21,7 @@ b=search_email(sum)  or search_teams(sum+1)
 return b
 """
 
-expected2="""
+expected2 = """
 q=3
 a=search_email(q)
 sum=a*3
@@ -70,7 +70,7 @@ x=search_email(a)
 return x
 """
 
-expected="""
+expected = """
 a=search_email(q)
 x=search_email(a)
 return x
@@ -93,49 +93,49 @@ C2 x = search_email(a)
  x"""
 
 
-
 def walk(analyzer2: dependency_analyzer.DependencyAnalyzer):
     named = {}
     crit = analyzer2.critical_nodes
     num = 0
     for c in crit:
-        named[c]= "C"+str(num)
-        num+=1
+        named[c] = "C" + str(num)
+        num += 1
         try:
             code = astor_fork.to_source(c).strip()
-            print(named[c] + " = "+code)
+            print(named[c] + " = " + code)
         except Exception:
             pass
     for n in analyzer2.node_lookup.keys():
         nodec = analyzer2.node_lookup[n]
         try:
             code = astor_fork.to_source(n).strip()
-            result = ' '.join([named[item] for item in nodec.dependency])
+            result = " ".join([named[item] for item in nodec.dependency])
             if n in crit:
-                result = named[n]+ " => "+result
-            print(result+" "+code)
+                result = named[n] + " => " + result
+            print(result + " " + code)
         except Exception:
             pass
     pass
 
+
 config = scope_analyzer.Config()
-config.awaitable_functions= ["search_email", "search_teams","search_meetings"]
-config.module_blacklist=None
-config.use_async=False
+config.awaitable_functions = ["search_email", "search_teams", "search_meetings"]
+config.module_blacklist = None
+config.use_async = False
 
 
 class TestDependencyAnalyzerModule(unittest.TestCase):
     def test_simple(self):
-        result=self.get(source_code)
+        result = self.get(source_code)
         self.assertEqual(result, expected.strip())
 
     def test_parallel(self):
-        result=self.get(source_code2)
+        result = self.get(source_code2)
         print(result)
         self.assertEqual(result, expected2.strip())
 
     def get(self, code):
-        with patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_stdout:
             print(code)
             print()
 
@@ -143,8 +143,9 @@ class TestDependencyAnalyzerModule(unittest.TestCase):
             analyzer1 = variables_analyzer.Scan(tree, config)
             analyzer2 = dependency_analyzer.Scan(tree, analyzer1)
             walk(analyzer2)
-            result=mock_stdout.getvalue().strip()
+            result = mock_stdout.getvalue().strip()
             return result
-        
-if __name__ == '__main__':
+
+
+if __name__ == "__main__":
     unittest.main()

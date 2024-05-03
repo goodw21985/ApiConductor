@@ -6,35 +6,35 @@ from ast_transform import scope_analyzer
 
 
 class Rewriter(scope_analyzer.ScopeAnalyzer):
-    orchestrator = "orchestrator"
-    orchestratorModule = "orchestrator"
-    orchestratorClass = "Orchestrator"
-    returnFunction = "Return"
-    programFunction = "_program"
-    functionPrefix = "_concurrent_"
-    completionPrefix = "_completion"
-    functionAddTask = "_add_task"
-    return_value_name = "_return_value"
-    functionDispatch = "_dispatch"
-    setPrefix = "_await_set_"
-    resultName = "Result"
-    taskFunction = "Task"
-    taskClass = "Task"
+    ORCHESTRATOR = "orchestrator"
+    ORCHESTRATORMODULE = "orchestrator"
+    ORCHESTRATORCLASS = "Orchestrator"
+    RETURNFUNCTION = "Return"
+    PROGRAMFUNCTION = "_program"
+    FUNCTIONPREFIX = "_concurrent_"
+    FUNCTIONADDTASK = "_add_task"
+    RETURN_VALUE_NAME = "_return_value"
+    FUNCTIONDISPATCH = "_dispatch"
+    RESULTNAME = "Result"
+    TASKFUNCTION = "Task"
+    TASKCLASS = "Task"
 
     def __init__(self, copy):
         self.pass_name = "rewriter"
         super().__init__(copy)
         self.unique_name_id = 0
         self.unique_names = {}
-        self.await_sets = {}
+        self.dag = {}
+        for group in self.concurrency_groups:
+            self.dag[self.FUNCTIONPREFIX+group.name]=[]
 
     def visit_Return(self, node):
         # _return_value = x
         groupname = self.current_node_lookup.concurrency_group.name
-        self.concurrency_group_nonlocals[groupname].add(self.return_value_name)
+        self.concurrency_group_nonlocals[groupname].add(self.RETURN_VALUE_NAME)
         val = self.generic_visit(node.value)
         return ast.Assign(
-            targets=[self.MakeStoreName(self.return_value_name)], value=val
+            targets=[self.MakeStoreName(self.RETURN_VALUE_NAME)], value=val
         )
 
     def visit_Call(self, node):
@@ -54,7 +54,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             new_keywords.append(new_kw)
 
         function_call = ast.Attribute(
-            value=ast.Name(id=self.orchestrator, ctx=ast.Load()),
+            value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
             attr=node.func.id,
             ctx=ast.Load(),
         )
@@ -80,33 +80,31 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         triggered = group.triggers[0]
 
-        if len(triggered.node_dependencies) == 1:
-            delegate = self.functionPrefix + triggered.name
-        else:
-            delegate = self.completionPrefix + unique_name
+        delegate = self.FUNCTIONPREFIX + triggered.name
+        if unique_name not in self.dag[delegate]:
+            self.dag[delegate].append(unique_name)
+            
+        #BOB
+        #if len(triggered.node_dependencies) == 1:
+        #    delegate = self.functionPrefix + triggered.name
+        #else:
+        #    delegate = self.completionPrefix + unique_name
 
-        # => orchestrator.add_task(_1, _completion__1)
+        # => orchestrator.add_task(_1, "_1")
         add_task_call = ast.Call(
             func=ast.Attribute(
-                value=ast.Name(id=self.orchestrator, ctx=ast.Load()),
-                attr=self.functionAddTask,
+                value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
+                attr=self.FUNCTIONADDTASK,
                 ctx=ast.Load(),
             ),
             args=[
-                ast.Name(id=unique_name, ctx=ast.Load()),  # First argument '__1'
-                ast.Name(
-                    id=delegate, ctx=ast.Load()
-                ),  # Second argument '_completion__1'
+                ast.Name(id=unique_name, ctx=ast.Load()),  # First argument '__1'                
+                self.MakeString(unique_name) # Second argument '"__1"'
             ],
             keywords=[],  # No keyword arguments
         )
 
         self.concurrency_start_code[groupname].append(ast.Expr(add_task_call))
-
-        if delegate.startswith(self.completionPrefix):
-            self.concurrency_completion_code[unique_name] = self.CompletionCode(
-                node, triggered
-            )
 
         # add nonlocals data
         if groupname not in self.concurrency_group_nonlocals:
@@ -126,6 +124,14 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         self.concurrency_group_nonlocals[parent_group].add(unique_name)
         return self.DoWait(self.MakeLoadName(unique_name))
 
+    def MakeString(self, string):
+        if sys.version_info >= (3, 9):
+            return ast.Constant(value=string)
+        else:
+            return ast.Str(s=string)
+            
+        
+        
     def place(self, orig, node):
         if isinstance(node, ast.Name):
             return node
@@ -165,12 +171,24 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         self.concurrency_group_nonlocals[groupname].add(id)
         self.allnonlocals.add(id)
 
+    def MakeDictionary(self, dict):
+        key_nodes = []
+        value_nodes = []
+        for key in dict.keys():
+            key_nodes.append(ast.Name(id = key, ctx=ast.Load()))
+            inList=dict[key]
+            if len(inList)==0:
+                value_nodes.append(ast.List(elts=[], ctx=ast.Load()))
+            else:
+                list_elements = [self.MakeString(item) for item in inList]
+                value_nodes.append(ast.List(elts=list_elements, ctx=ast.Load()))
+        return ast.Dict(keys=key_nodes, values=value_nodes)
+        
     def visit_Module(self, node):
         self.concurrency_group_code = {}
         self.concurrency_start_code = {}
-        self.concurrency_completion_code = {}
         self.concurrency_group_nonlocals = {}
-        self.allnonlocals = set([self.return_value_name])
+        self.allnonlocals = set([self.RETURN_VALUE_NAME])
 
         if self.concurrency_groups[0] == None:
             raise ValueError("165")
@@ -205,52 +223,31 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         self.concurrency_group_nonlocals = {}
         new_body_statements = []
 
-        for group_name in self.await_sets.keys():
-            set_name = self.setPrefix + group_name
-            string_nodes = [ast.Constant(value=s) for s in self.await_sets[group_name]]
-            assign_node = ast.Assign(
-                targets=[ast.Name(id=set_name, ctx=ast.Store())],
-                value=ast.Set(elts=string_nodes),
-            )
-
-            new_body_statements.append(assign_node)
-
-        # =>  __1 = None
+        # =>  __1, __2 = None
+        targets = []
         for symbol in sorted(self.allnonlocals):
-            targets = [self.MakeStoreName(symbol)]
-            value = ast.Constant(value=None)
-            statement = ast.Assign(targets=targets, value=value)
-            new_body_statements.append(statement)
+            targets.append(self.MakeStoreName(symbol))
+        value = ast.Constant(value=None)
+        statement = ast.Assign(targets=targets, value=value)
+        new_body_statements.append(statement)
 
         # => async def _concurrent_G0()
         for group_name in self.concurrency_group_code.keys():
             function_def = self.MakeFunctionDef(
-                self.functionPrefix + group_name,
+                self.FUNCTIONPREFIX + group_name,
                 self.concurrency_group_code[group_name],
                 isAsync=self.config.use_async,
             )
 
             new_body_statements.append(function_def)
 
-        # => async def _completion__0()
-        for orc_call in self.concurrency_completion_code.keys():
-            function_def = self.MakeFunctionDef(
-                self.completionPrefix + orc_call,
-                self.concurrency_completion_code[orc_call],
-                isAsync=self.config.use_async,
-            )
-
-            new_body_statements.append(function_def)
-
         # => orchestrator.dispatch(_concurrent_G0)
-        argument = ast.Name(
-            self.functionPrefix + self.concurrency_groups[0].name, ctx=ast.Load()
-        )
+        argument = self.MakeDictionary(self.dag)
 
         c = ast.Call(
             func=ast.Attribute(
-                value=ast.Name(id=self.orchestrator, ctx=ast.Load()),
-                attr=self.functionDispatch,
+                value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
+                attr=self.FUNCTIONDISPATCH,
                 ctx=ast.Load(),
             ),
             args=[argument],
@@ -261,22 +258,22 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         # => return _return_value
         new_body_statements.append(
-            ast.Return(self.MakeLoadName(self.return_value_name))
+            ast.Return(self.MakeLoadName(self.RETURN_VALUE_NAME))
         )
 
         # => def _program():
         program = function_def = self.MakeFunctionDef(
-            self.programFunction, new_body_statements
+            self.PROGRAMFUNCTION, new_body_statements
         )
 
         # => orchestrator.Return(_program())
         call_program = ast.Call(
-            func=ast.Name(self.programFunction, ctx=ast.Load()), args=[], keywords=[]
+            func=ast.Name(self.PROGRAMFUNCTION, ctx=ast.Load()), args=[], keywords=[]
         )
         call_return = ast.Call(
             func=ast.Attribute(
-                value=ast.Name(id=self.orchestrator, ctx=ast.Load()),
-                attr=self.returnFunction,
+                value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
+                attr=self.RETURNFUNCTION,
                 ctx=ast.Load(),
             ),
             args=[call_program],  # Argument list
@@ -284,12 +281,12 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         )
 
         # => orchestrator = orchestrator.Orchestrator()
-        intantiated_class = ast.Name(id=self.orchestrator, ctx=ast.Store())
+        intantiated_class = ast.Name(id=self.ORCHESTRATOR, ctx=ast.Store())
 
         instantiation = ast.Call(
             func=ast.Attribute(
-                value=ast.Name(id=self.orchestratorModule, ctx=ast.Load()),
-                attr=self.orchestratorClass,
+                value=ast.Name(id=self.ORCHESTRATORMODULE, ctx=ast.Load()),
+                attr=self.ORCHESTRATORCLASS,
                 ctx=ast.Load(),
             ),
             args=[],
@@ -302,7 +299,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         # => def _program():
         # => orchestrator.Return(_program())
         module_statements = [
-            ast.Import(names=[ast.alias(name=self.orchestratorModule, asname=None)]),
+            ast.Import(names=[ast.alias(name=self.ORCHESTRATORMODULE, asname=None)]),
             ast.Import(names=[ast.alias(name="asyncio", asname=None)]),
             ast.Assign(targets=[intantiated_class], value=instantiation),
             program,
@@ -313,55 +310,6 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             return ast.Module(body=module_statements, type_ignores=node.type_ignores)
         else:
             return ast.Module(body=module_statements)
-
-    def CompletionCode(self, node, triggered):
-        uniqueName = self.unique_names[node]
-        if triggered.name not in self.await_sets:
-            self.await_sets[triggered.name] = []
-        self.await_sets[triggered.name].append(uniqueName)
-        statements = []
-
-        # nonlocal _await_set_G2
-        setname = self.setPrefix + triggered.name
-        statements.append(ast.Nonlocal([setname]))
-
-        # _await_set_G2.remove("__1")
-        statements.append(
-            ast.Expr(
-                value=ast.Call(
-                    func=ast.Attribute(
-                        value=ast.Name(id=setname, ctx=ast.Load()),
-                        attr="remove",
-                        ctx=ast.Load(),
-                    ),
-                    args=[ast.Constant(value=uniqueName)],
-                    keywords=[],
-                )
-            )
-        )
-
-        # if not _await_set_G1 : await _concurrent_G1()
-
-        call = ast.Call(
-            func=ast.Name(id=self.functionPrefix + triggered.name, ctx=ast.Load()),
-            args=[],
-            keywords=[],
-        )
-
-        if self.config.use_async:
-            call = self.DoWait(call)
-
-        statements.append(
-            ast.If(
-                test=ast.UnaryOp(
-                    op=ast.Not(), operand=ast.Name(id=setname, ctx=ast.Load())
-                ),
-                body=[ast.Expr(value=call)],
-                orelse=[],
-            )
-        )
-
-        return statements
 
     def prependNonlocals(self, list, symbols):
         new_list = []
@@ -381,7 +329,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         if self.config.use_async:
             return ast.Await(value=node)
         else:
-            return ast.Attribute(value=node, attr=self.resultName, ctx=ast.Load())
+            return ast.Attribute(value=node, attr=self.RESULTNAME, ctx=ast.Load())
     def MakeFunctionDef(self, name, body, isAsync=False):
         args = ast.arguments(
             args=[],           
@@ -426,8 +374,8 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         else:
             return ast.Call(
                 func=ast.Attribute(
-                    value=ast.Name(self.orchestrator, ctx=ast.Load()),
-                    attr=self.taskFunction,
+                    value=ast.Name(self.ORCHESTRATOR, ctx=ast.Load()),
+                    attr=self.TASKFUNCTION,
                     ctx=ast.Load(),
                 ),
                 args=[node],

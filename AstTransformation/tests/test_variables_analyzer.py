@@ -39,7 +39,7 @@ print(func(3))
 return a,m
 """
 
-expected="""
+expected = """
 m
 | r #29
 | rw #2
@@ -100,20 +100,36 @@ func
 print
 | r #28"""
 
+
 def Nodes(list):
     last = list[-1]
-    
-    return "#"+str(last.lineno)
-    
-attr = [scope_analyzer.SymbolTableEntry.ATTR_READ, scope_analyzer.SymbolTableEntry.ATTR_WRITE, scope_analyzer.SymbolTableEntry.ATTR_READ_WRITE, scope_analyzer.SymbolTableEntry.ATTR_DECLARED, scope_analyzer.SymbolTableEntry.ATTR_AMBIGUOUS]
 
-rename = {"read":"r", "write":"w", "readwrite":"rw", "declared":":", "ambiguous":"m"}
+    return "#" + str(last.lineno)
+
+
+attr = [
+    scope_analyzer.SymbolTableEntry.ATTR_READ,
+    scope_analyzer.SymbolTableEntry.ATTR_WRITE,
+    scope_analyzer.SymbolTableEntry.ATTR_READ_WRITE,
+    scope_analyzer.SymbolTableEntry.ATTR_DECLARED,
+    scope_analyzer.SymbolTableEntry.ATTR_AMBIGUOUS,
+]
+
+rename = {
+    "read": "r",
+    "write": "w",
+    "readwrite": "rw",
+    "declared": ":",
+    "ambiguous": "m",
+}
+
+
 def walk(t, pre=""):
     for name in t.keys():
         v = t[name]
         print(f"{pre}{name}")
         if v.child:
-            walk(v.child, pre+". ");
+            walk(v.child, pre + ". ")
         if v.redirect:
             print(f"{pre}| redirect")
         if v.notLocal == True:
@@ -123,22 +139,24 @@ def walk(t, pre=""):
                 for y in v[x]:
                     print(f"{pre}| {rename[x]} {Nodes(y)}")
 
+
 config = scope_analyzer.Config()
-config.awaitable_functions= []
-config.module_blacklist=None
-config.use_async=False
+config.awaitable_functions = []
+config.module_blacklist = None
+config.use_async = False
 
 
 class TestVariablesAnalyzerModule(unittest.TestCase):
-    @patch('sys.stdout', new_callable=io.StringIO)
+    @patch("sys.stdout", new_callable=io.StringIO)
     def test_walk(self, mock_stdout):
         # Test your function here
         tree = ast.parse(source_code)
 
-        analyzer1= variables_analyzer.Scan(tree, config)
+        analyzer1 = variables_analyzer.Scan(tree, config)
         walk(analyzer1.symbol_table)
-        result=mock_stdout.getvalue().strip()
+        result = mock_stdout.getvalue().strip()
         self.assertEqual(result, expected.strip())
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

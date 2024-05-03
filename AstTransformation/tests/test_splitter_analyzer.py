@@ -11,9 +11,9 @@ from unittest.mock import patch
 import io
 
 config = scope_analyzer.Config()
-config.awaitable_functions= ["search_email", "search_teams","search_meetings"]
-config.module_blacklist=None
-config.use_async=False
+config.awaitable_functions = ["search_email", "search_teams", "search_meetings"]
+config.module_blacklist = None
+config.use_async = False
 
 
 source_code = """
@@ -27,7 +27,7 @@ c=b
 return c
 """
 
-expected="""
+expected = """
 q=3
 a=search_email(q)
 sum=a+a2
@@ -85,46 +85,48 @@ G2: C3 1
 G2: C3 search_teams(sum2) >> 2
 G2: C3 2"""
 
+
 def walk_groups(analyzer2: dependency_analyzer.DependencyAnalyzer):
     named = {}
     crit = analyzer2.critical_nodes
-    grps=analyzer2.concurrency_groups
+    grps = analyzer2.concurrency_groups
     num = 0
     for c in crit:
-        named[c]= "C"+str(num)
-        num+=1
+        named[c] = "C" + str(num)
+        num += 1
     for c in crit:
         try:
             gn = analyzer2.critical_node_to_group[c].name
             code = astor_fork.to_source(c).strip()
             nodec = analyzer2.node_lookup[c]
-            result = ' '.join([named[item] for item in nodec.dependency])
+            result = " ".join([named[item] for item in nodec.dependency])
 
-            print(named[c] + " => " + gn + " used by ("+result+")"+" = "+ code)
+            print(named[c] + " => " + gn + " used by (" + result + ")" + " = " + code)
         except Exception:
             pass
 
     print()
 
     for n in grps:
-        result = ' '.join([item.name for item in n.group_dependencies])
-        resultn = ' '.join([named[item] for item in n.grouped_critical_nodes])
-        print(n.name+" <= (" + resultn+ ") : uses "+result)
-        
+        result = " ".join([item.name for item in n.group_dependencies])
+        resultn = " ".join([named[item] for item in n.grouped_critical_nodes])
+        print(n.name + " <= (" + resultn + ") : uses " + result)
+
     print()
+
 
 def walk_nodes(analyzer2: dependency_analyzer.DependencyAnalyzer):
     named = {}
     crit = analyzer2.critical_nodes
     num = 0
     for c in crit:
-        named[c]= "C"+str(num)
-        num+=1
+        named[c] = "C" + str(num)
+        num += 1
     for c in crit:
         try:
             gn = analyzer2.critical_node_to_group[c].name
             code = astor_fork.to_source(c).strip()
-            print(gn + " = "+code)
+            print(gn + " = " + code)
         except Exception:
             pass
     for n in analyzer2.node_lookup.keys():
@@ -133,8 +135,8 @@ def walk_nodes(analyzer2: dependency_analyzer.DependencyAnalyzer):
             continue
         try:
             code = astor_fork.to_source(n).strip()
-            result2 = ' '.join([named[item] for item in nodec.dependency])
-            print(nodec.concurrency_group.name+": "+result2+" "+code)
+            result2 = " ".join([named[item] for item in nodec.dependency])
+            print(nodec.concurrency_group.name + ": " + result2 + " " + code)
         except Exception:
             pass
     pass
@@ -142,12 +144,12 @@ def walk_nodes(analyzer2: dependency_analyzer.DependencyAnalyzer):
 
 class TestSplitterAnalyzerModule(unittest.TestCase):
     def test_split(self):
-        result=self.get(source_code)
+        result = self.get(source_code)
         print(result)
         self.assertEqual(result, expected.strip())
-        
+
     def get(self, code):
-        with patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_stdout:
             print(code)
             print()
 
@@ -157,8 +159,9 @@ class TestSplitterAnalyzerModule(unittest.TestCase):
             analyzer3 = splitter_analyzer.Scan(tree, analyzer2)
             walk_groups(analyzer3)
             walk_nodes(analyzer3)
-            result=mock_stdout.getvalue().strip()
+            result = mock_stdout.getvalue().strip()
             return result
-        
-if __name__ == '__main__':
+
+
+if __name__ == "__main__":
     unittest.main()
