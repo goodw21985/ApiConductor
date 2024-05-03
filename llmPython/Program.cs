@@ -1,34 +1,63 @@
 ﻿using System;
 using IronPython.Hosting;
 using Microsoft.Scripting.Hosting;
+using static IronPython.Modules._ast;
 
 class Program
 {
-    static void Main()
+    static void Main() 
     {
-        // Your Python code in a string
-        string pythonCode = @"
-x = 42
-print(x)";
+        var code = @" 
+pass
+q = 3
+a = search_email(q, 0)
+sum = str(a) + 'j'
+sum += str(q)
+sum2 = sum + ""q""
+b = search_meetings(sum + ""a"") + search_teams(b = sum2 + ""b"")
+c = b
+Return(c);
+"; 
+         
+        var convert = @"
+print 
+import ast
+from ast_transform import astor
 
-        string safePythonCode = "import orchestrator\n" + pythonCode;
+from ast_transform import rewriter
+from ast_transform import splitter_analyzer
+from ast_transform import dependency_analyzer
+from ast_transform import variables_analyzer
+from ast_transform import scope_analyzer
+from ast_transform import code_verification
+tree = ast.parse(code)
 
-        string escapedPythonCode = safePythonCode
-    .Replace("\r", "")
-    .Replace("\\", "\\\\") // Escape backslashes
-    .Replace("\"", "\\\"") // Escape double quotes
-    .Replace("\n", "\\n"); // Escape newlines
-
-        string executePythonCode = $"import ast; ast.parse(\"{escapedPythonCode}\")";
-
-
-        // Create a Python engine
+config = scope_analyzer.Config()
+config.awaitableFunctions= [""search_email"", ""search_teams"",""search_meetings""]
+config.moduleBlackList=None
+config.useAsync=False
+            
+analyzer1 = variables_analyzer.Scan(tree, config)
+analyzer2 = dependency_analyzer.Scan(tree, analyzer1)
+analyzer3 = splitter_analyzer.Scan(tree, analyzer2)
+rewrite= rewriter.Scan(tree, analyzer3)
+result = astor.to_source(rewrite).strip()
+print(result) 
+";
         var engine = Python.CreateEngine();
+        var scope = engine.CreateScope();
 
-        // Execute Python code to build the AST
-        dynamic ast = engine.Execute(executePythonCode);
+        // Set variables in the scope
+        scope.SetVariable("code", code);
 
-        // Print the AST
-        Console.WriteLine(ast);
+        try
+        {
+            // Execute IronPython code with access to the variables in the scope
+            engine.Execute(convert, scope); // Output: 42
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString()); 
+        }  
     }
 }

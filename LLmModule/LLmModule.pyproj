@@ -5,8 +5,7 @@
     <ProjectGuid>1923332c-83ba-4b79-8a42-2dd32ab4f528</ProjectGuid>
     <ProjectHome>.</ProjectHome>
     <StartupFile>test.py</StartupFile>
-    <SearchPath>
-    </SearchPath>
+    <SearchPath>xcopy \Y \S "..\AstTransformation\ast_transform\*" "lib\ast_transform"</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <Name>LLmModule</Name>

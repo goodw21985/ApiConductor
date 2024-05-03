@@ -27,13 +27,7 @@ from .node_util import ExplicitNodeVisitor
 from .string_repr import pretty_string
 from .source_repr import pretty_source
 
-_pp = {} #BOB
-def Get__pp(node):
-    if node in _pp:
-        return _pp[node]
-    else:
-        return Precedence.highest
-    
+
 def to_source(node, indent_with=' ' * 4, add_line_information=False,
               pretty_string=pretty_string, pretty_source=pretty_source,
               source_generator_class=None):
@@ -87,8 +81,7 @@ def precedence_setter(AST=ast.AST, get_op_precedence=get_op_precedence,
             value = get_op_precedence(value)
         for node in nodes:
             if isinstance(node, AST):
-                _pp[node]=value #BOB
-                #node._pp = value
+                node._pp = value
             elif isinstance(node, list):
                 set_precedence(value, *node)
             else:
@@ -132,7 +125,7 @@ class Delimit(object):
         self.closing = delimiters[1]
         if node is not None:
             self.p = p = get_op_precedence(op or node)
-            self.pp = pp = Get__pp(tree) ##.get__pp(node)
+            self.pp = pp = tree.get__pp(node)
             self.discard = p >= pp
 
     def __enter__(self):
@@ -170,6 +163,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.colinfo = 0, 0  # index in result of string containing linefeed, and
                              # position of last linefeed in that string
         self.pretty_string = pretty_string
+        self._pp = Precedence.highest #BOB
         AST = ast.AST
 
         visit = self.visit
@@ -679,7 +673,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         # embedded is used to control when we might want
         # to use a triple-quoted string.  We determine
         # if we are in an assignment and/or in an expression
-        precedence = Get__pp(node) #self.get__pp(node)
+        precedence = self.get__pp(node)
         embedded = ((precedence > Precedence.Expr) +
                     (precedence >= Precedence.Assign))
 

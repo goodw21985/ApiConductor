@@ -1,8 +1,9 @@
 import unittest
 
 import ast
+a = ast.Name(id="or", ctx=ast.Load())
 from ast_transform import astor
-
+print(astor.to_source(a))
 from ast_transform import rewriter
 from ast_transform import splitter_analyzer
 from ast_transform import dependency_analyzer
