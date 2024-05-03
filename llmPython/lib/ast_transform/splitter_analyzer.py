@@ -92,7 +92,6 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
             if len(trimmed_groups)>1:
                 raise ValueError
 
-            self.Log(node, "assign group "+trimmed_groups[0].name)
             nodec.concurrency_group = trimmed_groups[0]
             
  

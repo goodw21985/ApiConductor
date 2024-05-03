@@ -144,7 +144,6 @@ class ScopeAnalyzer(ast.NodeTransformer):
             if node not in self.nodelookup:
                 self.current_node_lookup = NodeCrossReference(self.current_node_stack)
                 self.nodelookup[node] = self.current_node_lookup
-                self.Log(node,"set nodelookup2")
             else:
                 self.current_node_lookup = self.nodelookup[node]
         if isinstance(node, ast.Name):
@@ -160,7 +159,6 @@ class ScopeAnalyzer(ast.NodeTransformer):
             if node not in self.nodelookup:
                 self.current_node_lookup = NodeCrossReference(self.current_node_stack)
                 self.nodelookup[node] = self.current_node_lookup
-                self.Log(node,"set nodelookup")
             else:
                 self.current_node_lookup = self.nodelookup[node]
             if self.passName == "dependency":

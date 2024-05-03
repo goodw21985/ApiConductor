@@ -1,5 +1,6 @@
 
 import ast
+import sys
 from multiprocessing import Value
 from ast_transform import astor
 from ast_transform import rewriter
@@ -165,7 +166,7 @@ class VerificationVisitor(ast.NodeVisitor):
                 self.add_tasks.append([node.args[0].id, node.args[1].id])
                 return;
             for arg in node.args:
-                if not isinstance(arg, ast.Name) and not isinstance(arg, ast.Constant):
+                if not isinstance(arg, ast.Name) and not self.IsConstant(arg):
                     if isinstance(arg, ast.Call) and isinstance(arg.func, ast.Name) and arg.func.id == rewriter.Rewriter.programFunction:
                         # allow orchestrator.Return(_program())
                         pass
@@ -173,6 +174,7 @@ class VerificationVisitor(ast.NodeVisitor):
                         # Task() is allowed
                         pass
                     else:
+                        self.Log(arg, "arg is not a ast.Name")
                         raise ValueError("orchestrator function arguments must be ast.Name")
             for kw in node.keywords:
                 if not isinstance(kw.value, ast.Name) and not isinstance(kw.value, ast.Constant):
@@ -259,6 +261,52 @@ class VerificationVisitor(ast.NodeVisitor):
         child = next(iter(self.children.values()))
         child.checkawait()
         child.validateAll(validate)
+
+    def IsConstant(self, node):
+        if sys.version_info >= (3, 9):        
+            if isinstance(node, ast.Constant):
+                return True
+        else:
+            if isinstance(node, ast.Num):
+                return True
+            if isinstance(node, ast.Str):
+                return True
+            if isinstance(node, ast.Bytes):
+                return True
+            if isinstance(node, ast.Ellipsis):
+                return True
+            if isinstance(node, ast.NameConstant):
+                return True
+        return False
+
+        
+    def Log(self, node, msg = None):
+        if msg == None:
+            print(node)
+        elif isinstance(node, ast.Load):
+            pass
+        elif isinstance(node, ast.Add):
+            pass
+        elif isinstance(node, ast.Del):
+            pass
+        elif isinstance(node, ast.Store):
+            pass
+        elif isinstance(node, ast.keyword):
+            pass
+        else:
+            self.Logprint(node, msg)
+         
+    def Logprint(self, node, msg):
+        #try:
+        s = astor.to_source(node).strip()
+        if len(s)>20: s = s[0:20]+"..."
+        #except Exception as e:
+        #    s = str(e)
+
+        parent=""
+        line = str(node)+" " +str(parent)+ " '"+s+"' "+msg
+        print(line)
+
 
 class CodeVerification:
     def __init__(self,tree, config, validate):
