@@ -4,39 +4,62 @@ Wrapper for IronPython and (later) CPython that makes it practical for LLMs to w
 
 If you have code that has access to both an LLM and an API you will be calling, then you are an orchestrator.  LLmPython is a nuget package that you can use in the orchestrator to run specialized python code.
 
-Goals of LlmPython:
 
-# Safety
+# Goals of LlmPython:
+To allow LLM orchestrators to support workflows that are written by LLMs in the Python programming langauge.
+The key innovations that are provided are:
+* Safety.  LLMs can hallucinate and can be targets of code injection attacks.  A protected and sandboxed python execution environment is provided.
+* implicit parallelism.  Python code is rewritten so that the LLM does not have to learn how to write concurrent code.   If a DAG is detected in the python, it is implemented concurrently.
+* When binding to Llm python, the parent process provides the python interpreter an API that python code is allowed to use, but this API is actually implemented in the parent process in the parent processes programming language
+ 
+## Target Language bindings:
+* Python
+* C# with IronPython
+* C# with CPython
+* Typescript
+* JavaScript
+* Java
+* Go
+* Maybe
+  * Ruby
+  * Rust
+  * C++
+  * PHP 
+  * Swift
+
+
+# Details
+## Safety
 See detailed safety section below
 All code will pre-pended with an include statement of our own which ensures safety afterwards.  
 
 Since this code will run in the cloud, we have a white list of allowed modules, with the following explicitly always inappropriate:  system, io   
 
-# code transformation
+## code transformation
 
 LLmPython code will be transforms into IronPython code to add functionality:
 
-## Allow for attribute syntax to be used on Dictionaries like Javascript.  
+### Allow for attribute syntax to be used on Dictionaries like Javascript.  
 
 This willl likely require being aware of when literal arrays and objects need to be implicitly case to a class that implements attributes this is perhaps managed by type hints knowledge of when the syntax is ambiguous
 
-## Call backs of API functions from python to C# code in the orchestrator, with asynchronous completions
+### Call backs of API functions from python to C# code in the orchestrator, with asynchronous completions
 
 i.e. SearchEmail() function should be forwarded to the orchestrator for execution
 
-## Implicit parallelization
+### Implicit parallelization
 
 An LLM should not have to write async code, if two parallel calls to the orchestrator are placed in order, and there is no dependency, they should accor in parallel
 
-## Implicit imports
+### Implicit imports
 
 we don't want LLMs creating unnecessary tokens, so a list of fixes imports may also be prepended
 
-## Extensibility Client Library
+### Extensibility Client Library
 
 clients of LLmPython can provide a python module of functions that will be usable at the root name space.  This library will also be transformed, to be able to use the above new capabilities.
 
-### Creating function signatures for calls that are forwarded to the orchestrator
+#### Creating function signatures for calls that are forwarded to the orchestrator
 
 ```
 def search_email(keywords=None, start:str=None, end:str=None):
