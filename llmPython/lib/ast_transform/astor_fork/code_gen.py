@@ -33,6 +33,12 @@ def Get__pp(node):
         return _pp[node]
     else:
         return Precedence.highest
+_p_op = {} #BOB
+def Get__p_op(node):
+    if node in _p_op:
+        return _p_op[node]
+    else:
+        return None
     
 def to_source(node, indent_with=' ' * 4, add_line_information=False,
               pretty_string=pretty_string, pretty_source=pretty_source,
@@ -132,7 +138,8 @@ class Delimit(object):
         self.closing = delimiters[1]
         if node is not None:
             self.p = p = get_op_precedence(op or node)
-            self.pp = pp = Get__pp(tree) ##.get__pp(node)
+            pp1 = Get__pp(tree)
+            self.pp = pp = Get__pp(node) #BOB tree.get__pp(node) #Get__pp(tree) ##.get__pp(node)
             self.discard = p >= pp
 
     def __enter__(self):
@@ -813,7 +820,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                     pow_lhs = Precedence.Pow + 1
                     delimiters.discard = delimiters.pp != pow_lhs
                 else:
-                    op = self.get__p_op(node)
+                    #op = self.get__p_op(node)
+                    op = Get__p_op(node)
                     delimiters.discard = not isinstance(op, ast.USub)
 
     def visit_Tuple(self, node): 
@@ -896,7 +904,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             # number is merged into the number itself.  This
             # bit of ugliness means it is useful to know
             # what the parent operation was...
-            node.operand._p_op = node.op
+            _p_op[node.operand]= node.op
+            #BOB node.operand._p_op = node.op
             sym = get_op_symbol(node.op)
             self.write(sym, ' ' if sym.isalpha() else '', node.operand)
 

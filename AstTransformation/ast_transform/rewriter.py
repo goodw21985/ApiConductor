@@ -74,6 +74,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         if groupname not in self.concurrency_start_code:
             self.concurrency_start_code[groupname] = []
         self.concurrency_start_code[groupname].append(assign)
+        self.Log(assign,"API call")
         self.concurrency_group_nonlocals[groupname].add(unique_name)
         self.allnonlocals.add(unique_name)
 
@@ -381,9 +382,15 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             return ast.Await(value=node)
         else:
             return ast.Attribute(value=node, attr=self.resultName, ctx=ast.Load())
-
     def MakeFunctionDef(self, name, body, isAsync=False):
-        args = ast.arguments()
+        args = ast.arguments(
+            args=[],           
+            vararg=None,       
+            kwarg=None,        
+            defaults=[],       
+            kw_defaults=[],
+            kwonlyargs=[]
+        )
 
         if isAsync:
             function_def = ast.AsyncFunctionDef(

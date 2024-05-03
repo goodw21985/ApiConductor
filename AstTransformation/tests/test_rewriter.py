@@ -17,6 +17,7 @@ config.awaitable_functions= ["search_email", "search_teams","search_meetings"]
 config.module_blacklist=None
 config.use_async=False
 config.wrap_in_function_def =True
+config.log = True
 
 source_code = """
 def fn():
@@ -55,11 +56,8 @@ class TestRewriterModule(unittest.TestCase):
         analyzer2 = dependency_analyzer.Scan(tree, analyzer1)
         analyzer3 = splitter_analyzer.Scan(tree, analyzer2)
         rewrite= rewriter.Scan(tree, analyzer3)
-        #result = astor_fork.to_source(rewrite).strip()
-        #print(result)
-        #
-        #with open("C:/repos/llmPython/LLmModule/test.py", 'w') as file:
-        #    file.write(result)  
+        result = astor_fork.to_source(rewrite).strip()
+        print(result)
         verify = code_verification.CodeVerification(rewrite, config, validate)       
         
 if __name__ == '__main__':

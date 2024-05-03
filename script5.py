@@ -1,9 +1,8 @@
 import unittest
 
 import ast
-a = ast.Name(id="or", ctx=ast.Load())
-from ast_transform import astor
-print(astor.to_source(a))
+from ast_transform import astor_fork
+
 from ast_transform import rewriter
 from ast_transform import splitter_analyzer
 from ast_transform import dependency_analyzer
@@ -14,10 +13,11 @@ from unittest.mock import patch
 import io
 
 config = scope_analyzer.Config()
-config.awaitableFunctions= ["search_email", "search_teams","search_meetings"]
-config.moduleBlackList=None
-config.useAsync=False
-config.wrapInFunctionDef =True
+config.awaitable_functions= ["search_email", "search_teams","search_meetings"]
+config.module_blacklist=None
+config.use_async=False
+config.wrap_in_function_def =True
+config.log = True
 
 source_code = """
 def fn():
@@ -47,20 +47,17 @@ class TestRewriterModule(unittest.TestCase):
         # print(code)
         # print()
         tree = ast.parse(code)
-        if config.wrapInFunctionDef:
+        if config.wrap_in_function_def:
             tree.body = tree.body[0].body
         # print(ast.dump(tree))
-        # rresult = astor.to_source(tree).strip()
+        # rresult = astor_fork.to_source(tree).strip()
         # print(rresult)
         analyzer1 = variables_analyzer.Scan(tree, config)
         analyzer2 = dependency_analyzer.Scan(tree, analyzer1)
         analyzer3 = splitter_analyzer.Scan(tree, analyzer2)
         rewrite= rewriter.Scan(tree, analyzer3)
-        #result = astor.to_source(rewrite).strip()
-        #print(result)
-        #
-        #with open("C:/repos/llmPython/LLmModule/test.py", 'w') as file:
-        #    file.write(result)  
+        result = astor_fork.to_source(rewrite).strip()
+        print(result)
         verify = code_verification.CodeVerification(rewrite, config, validate)       
         
 if __name__ == '__main__':

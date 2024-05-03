@@ -495,8 +495,8 @@ class ScopeAnalyzer(ast.NodeTransformer):
     def Logprint(self, node, msg):
         # try:
         s = astor_fork.to_source(node).strip()
-        if len(s) > 20:
-            s = s[0:20] + "..."
+        if len(s) > 40:
+            s = s[0:40] + "..."
         # except Exception as e:
         #    s = str(e)
 

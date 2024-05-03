@@ -78,6 +78,9 @@ class VerificationVisitor(ast.NodeVisitor):
             raise ValueError("can only await ast.Name or empty function calls")
 
     def visit_Name(self, node):
+
+        if node.id == "search_email":
+            pass
         if node.id == rewriter.Rewriter.orchestrator:
             return
         if node.id == "asyncio":
@@ -88,7 +91,7 @@ class VerificationVisitor(ast.NodeVisitor):
             return
         if self.inLocalFunction:
             if node.id not in self.nonlocals:
-                raise ValueError("symbol not nonlocal")
+                raise ValueError("symbol not nonlocal: "+node.id)
 
         self.names.add(node.id)
 
