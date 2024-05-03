@@ -300,7 +300,6 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         # => orchestrator.Return(_program())
         module_statements = [
             ast.Import(names=[ast.alias(name=self.ORCHESTRATORMODULE, asname=None)]),
-            ast.Import(names=[ast.alias(name="asyncio", asname=None)]),
             ast.Assign(targets=[intantiated_class], value=instantiation),
             program,
             ast.Expr(call_return),
