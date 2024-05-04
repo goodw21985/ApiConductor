@@ -1,8 +1,8 @@
 import ast
 import sys
-from multiprocessing import Value
 
 from ast_transform import scope_analyzer
+from ast_transform import astor_fork
 
 
 class Rewriter(scope_analyzer.ScopeAnalyzer):
@@ -32,7 +32,9 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         # _return_value = x
         groupname = self.current_node_lookup.concurrency_group.name
         self.concurrency_group_nonlocals[groupname].add(self.RETURN_VALUE_NAME)
-        val = self.generic_visit(node.value)
+        val =self.place(node.value, self.visit(node.value))
+
+        #val = self.generic_visit(node.value)
         return ast.Assign(
             targets=[self.MakeStoreName(self.RETURN_VALUE_NAME)], value=val
         )
@@ -77,8 +79,6 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         groupname = group.name
         assign = ast.Assign(targets=[self.MakeStoreName(call_id)], value=call)
-        if groupname not in self.concurrency_start_code:
-            self.concurrency_start_code[groupname] = []
         self.concurrency_start_code[groupname].append(assign)
         self.add_nonlocal(groupname, call_id)
         self.allnonlocals.add(call_id)
@@ -144,8 +144,6 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         return node
 
     def add_nonlocal(self, groupname, id):
-        if groupname not in self.concurrency_group_nonlocals:
-            self.concurrency_group_nonlocals[groupname] = set([])
         self.concurrency_group_nonlocals[groupname].add(id)
         self.allnonlocals.add(id)
 
@@ -166,6 +164,11 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         self.concurrency_group_code = {}
         self.concurrency_start_code = {}
         self.concurrency_group_nonlocals = {}
+        for group in self.concurrency_groups:
+            self.concurrency_group_code[group.name]=[]
+            self.concurrency_start_code[group.name]=[]
+            self.concurrency_group_nonlocals[group.name]=set([])
+
         self.allnonlocals = set([self.RETURN_VALUE_NAME])
 
         if self.concurrency_groups[0] == None:
@@ -181,8 +184,6 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 if self.statement_group == None:
                     raise ValueError("174")
                 statement_group_name = self.statement_group.name
-            if statement_group_name not in self.concurrency_group_code:
-                self.concurrency_group_code[statement_group_name] = []
             new_statement = self.visit(statement)
             self.concurrency_group_code[statement_group_name].append(new_statement)
 
@@ -193,22 +194,28 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 ]
 
         for groupname in self.concurrency_group_nonlocals:
-
             self.concurrency_group_code[groupname] = self.prependNonlocals(
                 self.concurrency_group_code[groupname],
                 self.concurrency_group_nonlocals[groupname],
             )
 
-        self.concurrency_group_nonlocals = {}
         new_body_statements = []
 
         # =>  __1, __2 = None
         targets = []
+        targetlines = [targets]
+        char_count_in_line = 0
         for symbol in sorted(self.allnonlocals):
+            char_count_in_line+=len(symbol)+4
+            if char_count_in_line>700:
+                targets=[]
+                targetlines.append(targets)
+                char_count_in_line=0;
             targets.append(self.MakeStoreName(symbol))
-        value = ast.Constant(value=None)
-        statement = ast.Assign(targets=targets, value=value)
-        new_body_statements.append(statement)
+        for targets in targetlines:
+            value = ast.Constant(value=None)
+            statement = ast.Assign(targets=targets, value=value)
+            new_body_statements.append(statement)
 
         # => async def _concurrent_G0()
         for group_name in self.concurrency_group_code.keys():

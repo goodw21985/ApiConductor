@@ -43,7 +43,7 @@ class TestQuickModule(unittest.TestCase):
         rewrite= rewriter.Scan(tree, analyzer3)
         result = astor_fork.to_source(rewrite).strip()
         print(result)
-        with open("C:/repos/llmPython/LLmModule/test.py", 'w') as file:
+        with open("C:/repos/llmPython/LLmModule/test2.py", 'w') as file:
             file.write(result)  
         
 if __name__ == '__main__':

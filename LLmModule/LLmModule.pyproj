@@ -29,6 +29,7 @@
   <ItemGroup>
     <Compile Include="orchestrator.py" />
     <Compile Include="safety.py" />
+    <Compile Include="test2.py" />
     <Compile Include="test.py" />
     <Compile Include="__init__.py" />
   </ItemGroup>

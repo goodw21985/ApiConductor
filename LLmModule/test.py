@@ -3,8 +3,7 @@ orchestrator = orchestrator.Orchestrator()
 
 
 def _program(orchestrator):
-    (_1) = (_2) = (_C0) = (_C1) = (_C2) = (_return_value) = (a) = (b) = (c) = (
-        q) = (sum) = (sum2) = None
+    _1 = _2 = _C0 = _C1 = _C2 = _return_value = a = b = c = q = sum = sum2 = None
 
     def _concurrent_G0():
         nonlocal _C0, q
@@ -28,8 +27,7 @@ def _program(orchestrator):
         b = _C1.Result + _C2.Result
         c = b
         _return_value = c
-    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0'],
-        _concurrent_G2: ['_C1', '_C2']})
+    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0'], _concurrent_G2: ['_C1', '_C2']})
     return _return_value
 
 

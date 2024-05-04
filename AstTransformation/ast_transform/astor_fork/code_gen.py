@@ -141,6 +141,8 @@ class Delimit(object):
             pp1 = Get__pp(tree)
             self.pp = pp = Get__pp(node) #BOB tree.get__pp(node) #Get__pp(tree) ##.get__pp(node)
             self.discard = p >= pp
+            if not self.discard:
+                pass
 
     def __enter__(self):
         return self

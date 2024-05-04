@@ -24,7 +24,7 @@ def pretty_source(source):
     return ''.join(split_lines(source))
 
 
-def split_lines(source, maxline=79):
+def split_lines(source, maxline=799):
     """Split inputs according to lines.
        If a line is short enough, just yield it.
        Otherwise, fix it.
