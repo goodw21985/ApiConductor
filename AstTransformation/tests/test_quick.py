@@ -24,7 +24,7 @@ config.log=True
 
 source_code = """
 a=[search_email(9,0), 2]
-return search_email(a[1])
+return search_email(a[1])+1
 """
 
 

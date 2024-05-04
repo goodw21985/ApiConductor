@@ -66,14 +66,13 @@ class NodeCrossReference:
         self.ancestors = ancestors  # the parent node stack of the current node
         self.symbol = None  # the Symbol table entry for this if node, if this node references a symbol
         self.dependency = []  # list of critical nodes that depend on this node
-        self.concurrency_group = None  # code grouping
+        self.assigned_concurrency_group = None  # code grouping
         self.reassigned = (
             None  # name of expression if assigned to newly created variable
         )
         self.dependency_visited = (
             False  # used to identify nodes not followed in dependency analysis
         )
-
 
 class Config:
     def __init__(self):

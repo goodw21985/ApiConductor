@@ -30,11 +30,10 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
     def visit_Return(self, node):
         # _return_value = x
-        groupname = self.current_node_lookup.concurrency_group.name
+        groupname = self.current_node_lookup.assigned_concurrency_group.name
         self.concurrency_group_nonlocals[groupname].add(self.RETURN_VALUE_NAME)
-        val =self.place(node.value, self.visit(node.value))
+        val = self.visit(node.value)
 
-        #val = self.generic_visit(node.value)
         return ast.Assign(
             targets=[self.MakeStoreName(self.RETURN_VALUE_NAME)], value=val
         )
@@ -42,6 +41,8 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     def visit_Call(self, node):
         if node not in self.critical_nodes:
             return self.generic_visit(node)
+
+        group = self.current_node_lookup.assigned_concurrency_group
 
         # => orchestrator.search_email(q, 0, id="_C0")
         call_id = "_" + self.critical_node_names[node]
@@ -75,8 +76,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         # => _C0 = asyncio.create_task(orchestrator.search_email(q, 0))
 
-        group = self.current_node_lookup.concurrency_group
-
+        #group = self.critical_node_to_group[node]
         groupname = group.name
         assign = ast.Assign(targets=[self.MakeStoreName(call_id)], value=call)
         self.concurrency_start_code[groupname].append(assign)
@@ -98,7 +98,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             if isinstance(new_kw.value, ast.Name):
                 self.concurrency_group_nonlocals[groupname].add(new_kw.value.id)
 
-        parent_group = self.node_lookup[self.node_stack[-2]].concurrency_group.name
+        parent_group = self.node_lookup[self.node_stack[-2]].assigned_concurrency_group.name
         self.add_nonlocal(parent_group, call_id)
         return self.DoWait(self.MakeLoadName(call_id))
 
@@ -128,7 +128,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             if isinstance(node, ast.NameConstant):
                 return node
         nodec = self.node_lookup[orig]
-        groupname = nodec.concurrency_group.name
+        groupname = nodec.assigned_concurrency_group.name
         unique_name = self.MakeUniqueName()
         assign = ast.Assign(targets=[self.MakeStoreName(unique_name)], value=node)
         self.concurrency_group_code[groupname].append(assign)
@@ -139,7 +139,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     def visit_Name2(self, node):
         symbol = self.current_node_lookup.symbol
         if symbol.write:
-            groupname = self.current_node_lookup.concurrency_group.name
+            groupname = self.current_node_lookup.assigned_concurrency_group.name
             self.add_nonlocal(groupname, node.id)
         return node
 
@@ -180,7 +180,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 # unreferenced statement..  perhaps for logging?
                 # add to previous group
                 statement_node_lookup = self.node_lookup[statement]
-                self.statement_group = statement_node_lookup.concurrency_group
+                self.statement_group = statement_node_lookup.assigned_concurrency_group
                 if self.statement_group == None:
                     raise ValueError("174")
                 statement_group_name = self.statement_group.name

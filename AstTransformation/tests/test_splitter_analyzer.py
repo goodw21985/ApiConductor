@@ -60,7 +60,7 @@ def walk_nodes(analyzer2: dependency_analyzer.DependencyAnalyzer):
         try:
             code = astor_fork.to_source(n).strip()
             result2 = " ".join([named[item] for item in nodec.dependency])
-            print(nodec.concurrency_group.name + ": " + result2 + " " + code)
+            print(nodec.assigned_concurrency_group.name + ": " + result2 + " " + code)
         except Exception:
             pass
     pass
@@ -104,11 +104,11 @@ G2 <= (C2) : uses G1
 G0 = search_email(9, 0)
 G1 = search_email(a[1])
 G2 = return search_email(a[1])
-G1: C1 search_email(9, 0)
+G0: C1 search_email(9, 0)
 G0: C0 search_email
 G0: C0 9
 G0: C0 0
-G2: C2 search_email(a[1])
+G1: C2 search_email(a[1])
 G1: C1 search_email
 G1: C1 a[1]
 G1: C1 a
@@ -158,12 +158,12 @@ G0 = search_email(q)
 G1 = search_email(sum)
 G1 = search_teams(sum2)
 G2 = return c
-G1: C1 C2 search_email(q)
+G0: C1 C2 search_email(q)
 G0: C0 search_email
 G0: C0 q
 G0: C0 C1 C2 q = 3
 G0: C0 C1 C2 3
-G2: C3 search_email(sum)
+G1: C3 search_email(sum)
 G1: C1 search_email
 G1: C1 sum
 G1: C1 C2 sum = a + a2
@@ -174,7 +174,7 @@ G1: C1 C2 a2
 G1: C1 C2 sum += q
 G1: C1 C2 sum
 G1: C1 C2 q
-G2: C3 search_teams(sum2)
+G1: C3 search_teams(sum2)
 G1: C2 search_teams
 G1: C2 sum2
 G1: C2 sum2 = sum + 3

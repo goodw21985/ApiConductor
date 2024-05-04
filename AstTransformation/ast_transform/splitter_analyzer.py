@@ -92,8 +92,12 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
 
             if len(trimmed_groups) > 1:
                 raise ValueError
-
-            nodec.concurrency_group = trimmed_groups[0]
+            
+            if node in self.critical_nodes:
+                nodec.assigned_concurrency_group = self.critical_node_to_group[node]
+            else:
+                nodec.assigned_concurrency_group = trimmed_groups[0]
+            
 
 
 def Scan(tree, parent=None):
