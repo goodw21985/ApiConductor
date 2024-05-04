@@ -18,7 +18,7 @@ class Orchestrator:
         return node
     
     def _completion(self, task, val):
-        time.sleep(1)  # Wait for one second
+        time.sleep(.01)  # Wait for 10
         task.Result = val
         self.signal_queue.put(task)
         
