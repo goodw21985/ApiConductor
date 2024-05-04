@@ -8,7 +8,87 @@ from ast_transform import variables_analyzer
 from unittest.mock import patch
 import io
 
-source_code = """
+
+
+def Nodes(list):
+    last = list[-1]
+
+    return "#" + str(last.lineno)
+
+
+attr = [
+    scope_analyzer.SymbolTableEntry.ATTR_READ,
+    scope_analyzer.SymbolTableEntry.ATTR_WRITE,
+    scope_analyzer.SymbolTableEntry.ATTR_READ_WRITE,
+    scope_analyzer.SymbolTableEntry.ATTR_DECLARED,
+    scope_analyzer.SymbolTableEntry.ATTR_AMBIGUOUS,
+]
+
+rename = {
+    "read": "r",
+    "write": "w",
+    "readwrite": "rw",
+    "declared": ":",
+    "ambiguous": "m",
+}
+
+
+def walk(t, pre=""):
+    for name in t.keys():
+        v = t[name]
+        print(f"{pre}{name}")
+        if v.child:
+            walk(v.child, pre + ". ")
+        if v.redirect:
+            print(f"{pre}| redirect")
+        if v.notLocal == True:
+            print(f"{pre}| notlocal")
+        for x in attr:
+            if v[x]:
+                for y in v[x]:
+                    print(f"{pre}| {rename[x]} {Nodes(y)}")
+
+
+config = scope_analyzer.Config()
+config.awaitable_functions = []
+config.module_blacklist = None
+config.use_async = False
+
+
+class TestVariablesAnalyzerModule(unittest.TestCase):
+    @patch("sys.stdout", new_callable=io.StringIO)
+    def check(self,source_code,expected, mock_stdout):
+        # Test your function here
+        tree = ast.parse(source_code)
+
+        analyzer1 = variables_analyzer.Scan(tree, config)
+        walk(analyzer1.symbol_table)
+        result = mock_stdout.getvalue().strip()
+        self.assertEqual(result, expected.strip())
+
+##############
+    def test_simple(self):
+        source_code = """
+a=[search_email(9,0), 2]
+b=a[1]
+return search_email(b)
+"""
+
+        expected = """
+a
+| r #3
+| w #2
+search_email
+| r #2
+| r #4
+b
+| r #4
+| w #3"""
+        self.check(source_code,expected)        
+
+#######################
+    def test_complex(self):
+        source_code = """
 m+=3
 a.b+=a.m
 class MyClass:
@@ -39,7 +119,7 @@ print(func(3))
 return a,m
 """
 
-expected = """
+        expected = """
 m
 | r #29
 | rw #2
@@ -99,64 +179,8 @@ func
 | w #27
 print
 | r #28"""
-
-
-def Nodes(list):
-    last = list[-1]
-
-    return "#" + str(last.lineno)
-
-
-attr = [
-    scope_analyzer.SymbolTableEntry.ATTR_READ,
-    scope_analyzer.SymbolTableEntry.ATTR_WRITE,
-    scope_analyzer.SymbolTableEntry.ATTR_READ_WRITE,
-    scope_analyzer.SymbolTableEntry.ATTR_DECLARED,
-    scope_analyzer.SymbolTableEntry.ATTR_AMBIGUOUS,
-]
-
-rename = {
-    "read": "r",
-    "write": "w",
-    "readwrite": "rw",
-    "declared": ":",
-    "ambiguous": "m",
-}
-
-
-def walk(t, pre=""):
-    for name in t.keys():
-        v = t[name]
-        print(f"{pre}{name}")
-        if v.child:
-            walk(v.child, pre + ". ")
-        if v.redirect:
-            print(f"{pre}| redirect")
-        if v.notLocal == True:
-            print(f"{pre}| notlocal")
-        for x in attr:
-            if v[x]:
-                for y in v[x]:
-                    print(f"{pre}| {rename[x]} {Nodes(y)}")
-
-
-config = scope_analyzer.Config()
-config.awaitable_functions = []
-config.module_blacklist = None
-config.use_async = False
-
-
-class TestVariablesAnalyzerModule(unittest.TestCase):
-    @patch("sys.stdout", new_callable=io.StringIO)
-    def test_walk(self, mock_stdout):
-        # Test your function here
-        tree = ast.parse(source_code)
-
-        analyzer1 = variables_analyzer.Scan(tree, config)
-        walk(analyzer1.symbol_table)
-        result = mock_stdout.getvalue().strip()
-        self.assertEqual(result, expected.strip())
-
+        self.check(source_code,expected)        
+##############
 
 if __name__ == "__main__":
     unittest.main()

@@ -11,8 +11,9 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
         self.symbol_table_stack.append({})
         self.symbol_table = self.symbol_table_stack[-1]
         self.critical_nodes = []
+        self.critical_node_names = {}
         self.global_return_statement = None
-
+    
     def visit_Name2(self, node):
         name = node.id
         if node.id in self.config.awaitable_functions and isinstance(
@@ -42,6 +43,7 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
             if node.func.id in self.config.awaitable_functions:
                 if self.ConcurrencySafeContext(self.node_stack):
                     self.critical_nodes.append(node)
+                    self.critical_node_names[node]=self.new_critical_node_name()
         return node
 
     def visit_Lambda2(self, node):

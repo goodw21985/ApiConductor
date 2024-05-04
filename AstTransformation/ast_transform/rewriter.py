@@ -41,8 +41,8 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         if node not in self.critical_nodes:
             return self.generic_visit(node)
 
-        # => orchestrator.search_email(q, 0, id="-1")
-        unique_name = self.MakeUniqueName(node)
+        # => orchestrator.search_email(q, 0, id="_C0")
+        call_id = "_" + self.critical_node_names[node]
         new_args = []
         for arg in node.args:
             new_args.append(self.place(arg, self.visit(arg)))
@@ -56,7 +56,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         new_keyword = ast.keyword(
             arg=self.CALLID, 
-            value=self.MakeString(unique_name))
+            value=self.MakeString(call_id))
         
         new_keywords.append(new_keyword)
 
@@ -71,29 +71,26 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         if self.config.use_async:
             call = self.MakeTask(call)
 
-        # => _1 = asyncio.create_task(orchestrator.search_email(q, 0))
+        # => _C0 = asyncio.create_task(orchestrator.search_email(q, 0))
 
         group = self.current_node_lookup.concurrency_group
 
         groupname = group.name
-        assign = ast.Assign(targets=[self.MakeStoreName(unique_name)], value=call)
+        assign = ast.Assign(targets=[self.MakeStoreName(call_id)], value=call)
         if groupname not in self.concurrency_start_code:
             self.concurrency_start_code[groupname] = []
         self.concurrency_start_code[groupname].append(assign)
-        self.concurrency_group_nonlocals[groupname].add(unique_name)
-        self.allnonlocals.add(unique_name)
+        self.add_nonlocal(groupname, call_id)
+        self.allnonlocals.add(call_id)
 
         triggered = group.triggers[0]
 
         delegate = self.FUNCTIONPREFIX + triggered.name
-        if unique_name not in self.dag[delegate]:
-            self.dag[delegate].append(unique_name)
+        if call_id not in self.dag[delegate]:
+            self.dag[delegate].append(call_id)
             
         # add nonlocals data
-        if groupname not in self.concurrency_group_nonlocals:
-            self.concurrency_group_nonlocals[groupname] = set([])
-
-        self.concurrency_group_nonlocals[groupname].add(unique_name)
+        self.add_nonlocal(groupname, call_id)
         for new_arg in new_args:
             if isinstance(new_arg, ast.Name):
                 self.concurrency_group_nonlocals[groupname].add(new_arg.id)
@@ -102,10 +99,8 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 self.concurrency_group_nonlocals[groupname].add(new_kw.value.id)
 
         parent_group = self.node_lookup[self.node_stack[-2]].concurrency_group.name
-        if parent_group not in self.concurrency_group_nonlocals:
-            self.concurrency_group_nonlocals[parent_group] = set([])
-        self.concurrency_group_nonlocals[parent_group].add(unique_name)
-        return self.DoWait(self.MakeLoadName(unique_name))
+        self.add_nonlocal(parent_group, call_id)
+        return self.DoWait(self.MakeLoadName(call_id))
 
     def MakeString(self, string):
         if sys.version_info >= (3, 9):
@@ -198,6 +193,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 ]
 
         for groupname in self.concurrency_group_nonlocals:
+
             self.concurrency_group_code[groupname] = self.prependNonlocals(
                 self.concurrency_group_code[groupname],
                 self.concurrency_group_nonlocals[groupname],
@@ -352,7 +348,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             )
 
         return function_def
-
+        
     def MakeTask(self, node):
         if self.config.use_async:
             return ast.Call(

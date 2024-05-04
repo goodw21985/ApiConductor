@@ -97,6 +97,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.def_class_param_stack = []
         self.node_lookup = {}
         self.critical_nodes = None
+        self.critical_node_names = None
         self.have_symbol_table = False
         self.global_return_statement = None
         self.tracking = None
@@ -144,6 +145,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.class_symbols_stack = []
             self.def_class_param_stack = []
             self.critical_nodes = copy.critical_nodes
+            self.critical_node_names = copy.critical_node_names
             self.node_lookup = copy.node_lookup
             self.tracking = None
             self.critical_dependencies = copy.critical_dependencies
@@ -151,6 +153,9 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.concurrency_groups = copy.concurrency_groups
             self.module_blacklist = copy.module_blacklist
         self.Log("*** " + self.pass_name)
+
+    def new_critical_node_name(self):
+        return "C" + str(len(self.critical_node_names))
 
     def skip_visit(self, node):
         self.node_stack.append(node)

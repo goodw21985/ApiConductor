@@ -385,6 +385,7 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
         for v in self.terminal_nodes:
             if v not in self.critical_nodes:
                 self.critical_nodes.append(v)
+                self.critical_node_names[v]=self.new_critical_node_name()
 
     def MarkDependencies(self, critical_node):
         self.tracking = critical_node
