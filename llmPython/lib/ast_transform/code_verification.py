@@ -56,7 +56,7 @@ class VerificationVisitor(ast.NodeVisitor):
     def visit_Attribute(self, node):
         if isinstance(node.value, ast.Name):
             id = node.attr
-            if node.attr == rewriter.Rewriter.resultName:
+            if node.attr == rewriter.Rewriter.RESULTNAME:
                 self.awaited_names.add(node.value.id)
                 return
 
@@ -81,7 +81,7 @@ class VerificationVisitor(ast.NodeVisitor):
 
         if node.id == "search_email":
             pass
-        if node.id == rewriter.Rewriter.orchestrator:
+        if node.id == rewriter.Rewriter.ORCHESTRATOR:
             return
         if node.id == "asyncio":
             return
@@ -120,21 +120,23 @@ class VerificationVisitor(ast.NodeVisitor):
                 self.assignments[symbol] = node.targets
                 return
 
-        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
-            id = node.targets[0].id
-            initialized = False
-            if isinstance(node.value, ast.Constant):
-                if node.value.value == None:
-                    id = node.targets[0].id
-                    if id not in self.names:
-                        self.initialized.add(id)
-                        initialized = True
-            if not initialized:
-                self.assignments[id] = node.targets
+        for target in node.targets:            
+            if isinstance(node.targets[0], ast.Name):
+                id = node.targets[0].id
+                initialized = False
+                if isinstance(node.value, ast.Constant):
+                    if node.value.value == None:
+                        id = node.targets[0].id
+                        if id not in self.names:
+                            self.initialized.add(id)
+                            initialized = True
+                if not initialized:
+                    self.assignments[id] = node.targets
+                else:
+                    return
             else:
-                return
-        else:
-            raise ValueError("assignment to tuple")
+                raise ValueError("illegal assignment")
+
         self.generic_visit(node)
 
     def IsTaskCall(self, node):
@@ -151,8 +153,8 @@ class VerificationVisitor(ast.NodeVisitor):
                             return True
                     else:
                         if (
-                            node.func.attr == rewriter.Rewriter.taskFunction
-                            and node.func.value.id == rewriter.Rewriter.orchestrator
+                            node.func.attr == rewriter.Rewriter.TASKFUNCTION
+                            and node.func.value.id == rewriter.Rewriter.ORCHESTRATOR
                         ):
                             return True
 
@@ -176,7 +178,7 @@ class VerificationVisitor(ast.NodeVisitor):
         if (
             isinstance(node.func, ast.Attribute)
             and isinstance(node.func.value, ast.Name)
-            and node.func.value.id == rewriter.Rewriter.orchestrator
+            and node.func.value.id == rewriter.Rewriter.ORCHESTRATOR
         ):
 
             name = node.func.attr
@@ -186,26 +188,28 @@ class VerificationVisitor(ast.NodeVisitor):
                 if (
                     not isAssignChild
                     and not isExprChild
-                    and name != rewriter.Rewriter.orchestratorClass
-                    and name != rewriter.Rewriter.taskClass
+                    and name != rewriter.Rewriter.ORCHESTRATORCLASS
+                    and name != rewriter.Rewriter.TASKCLASS
                 ):
                     raise ValueError(
                         "orchestrator functions must be assigned as task or in expr statements"
                     )
 
-            if name == rewriter.Rewriter.functionAddTask:
-                self.add_tasks.append([node.args[0].id, node.args[1].id])
+            if name == rewriter.Rewriter.FUNCTIONADDTASK:
+                self.add_tasks.append(node.args[0].id)
                 return
             for arg in node.args:
-                if not isinstance(arg, ast.Name) and not self.IsConstant(arg):
+                if isinstance(arg, ast.Dict) and name == rewriter.Rewriter.FUNCTIONDISPATCH:
+                    pass
+                elif not isinstance(arg, ast.Name) and not self.IsConstant(arg):
                     if (
                         isinstance(arg, ast.Call)
                         and isinstance(arg.func, ast.Name)
-                        and arg.func.id == rewriter.Rewriter.programFunction
+                        and arg.func.id == rewriter.Rewriter.PROGRAMFUNCTION
                     ):
                         # allow orchestrator.Return(_program())
                         pass
-                    elif name == rewriter.Rewriter.taskFunction:
+                    elif name == rewriter.Rewriter.TASKFUNCTION:
                         # Task() is allowed
                         pass
                     else:
