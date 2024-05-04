@@ -10,6 +10,21 @@ class TestMockModule(unittest.TestCase):
         self.assertEqual(m.capture2, m.capture1)
 
 #######################
+    def test_dict_follow(self):
+        libd = """
+def search_email(a='first', b='second'):
+    return {a:{'name':"bob", 'age':10}, b:{'name':'jill', 'age':11}}
+
+def search_dog(a='first', b='second'):
+    return a['name']+" "+str(a['age']) + "," + b['name']+" "+str(b['age'])
+"""
+
+        srcd = """
+a=[search_email('a1','a2'), search_email('a3','a4')]
+return search_dog(a[0]['a1'], a[1]['a4'])
+"""
+        self.check(libd, srcd)
+#######################
     def test_ambiguous_dependency(self):
         lib = """
 def search_email(a=0, b=0):
