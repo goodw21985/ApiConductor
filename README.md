@@ -11,7 +11,8 @@ The key innovations that are provided are:
 * Safety.  LLMs can hallucinate and can be targets of code injection attacks.  A protected and sandboxed python execution environment is provided.
 * implicit parallelism.  Python code is rewritten so that the LLM does not have to learn how to write concurrent code.   If a DAG is detected in the python, it is implemented concurrently.
 * When binding to Llm python, the parent process provides the python interpreter an API that python code is allowed to use, but this API is actually implemented in the parent process in the parent processes programming language
- 
+* Debuggability from logs.  Devs will be able to step through code in an IDE using data from a production system easily, to determine how the code is executing in the cloud.
+
 ## Target Language bindings:
 * Python
 * C# with IronPython
