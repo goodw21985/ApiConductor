@@ -23,21 +23,22 @@ class Orchestrator:
         task.Result = val
         self.signal_queue.put(task)
         
-    def delayed_response(self, val):
+    def task(self, id, val):
         # Create a thread and start it
         task = Task()
+        self._add_task(task, id)
         thread = threading.Thread(target=self._completion, args=(task,val))
         thread.start()    # client accessable functions 
         return task
     
-    def search_email(self, a=0, b=0):
-        return self.delayed_response(str(a)+ "1")
+    def search_email(self, a=0, b=0, _id=None):
+        return self.task(_id, str(a)+ "1")
 
-    def search_meetings(self, a=0, b=0):
-        return self.delayed_response(str(a)+"2")
+    def search_meetings(self, a=0, b=0, _id=None):
+        return self.task(_id, str(a)+"2")
 
-    def search_teams(self, a=0, b=0):
-        return self.delayed_response(str(b)+"3")
+    def search_teams(self, a=0, b=0, _id=None):
+        return self.task(_id, str(b)+"3")
 
     def Return(self, a):
         print(a)

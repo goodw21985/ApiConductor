@@ -63,6 +63,8 @@ ALLOWED_MODULES = set(
         "ntpath",
         "genericpath",
         "os.path",
+        "_pydev_bundle.pydev_monkey",
+        "ast",
     ]
 )
 

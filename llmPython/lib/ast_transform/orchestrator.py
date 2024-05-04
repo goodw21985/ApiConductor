@@ -1,79 +1,88 @@
-import safety
+from . import safety
 import threading
 import time
 import io
 import queue
 
-
 class Task:
     def __init__(self):
-        self.result = None
-
-
+        self.Result = None
+        
 class Orchestrator:
     def __init__(self):
-        self._task_dispatch = {}
-        self._task_list = []
-        self.task_lookup = {}
+        self._task_id = {}
         self.lock = threading.Lock()
         self.signal_queue = queue.Queue()
+        self.dag = None
 
     def Task(self, node):
         return node
-
+    
     def _completion(self, task, val):
         time.sleep(1)  # Wait for one second
         task.Result = val
         self.signal_queue.put(task)
-
-    def delayed_response(self, val):
+        
+    def start_task(self, id, val):
         # Create a thread and start it
         task = Task()
-        thread = threading.Thread(target=self._completion, args=(task, val))
-        thread.start()  # client accessable functions
+        self._add_task(task, id)
+        thread = threading.Thread(target=self._completion, args=(task,val))
+        thread.start()    # client accessable functions 
         return task
+    
+    def search_email(self, a=0, b=0, _id=None):
+        return self.task(_id, str(a)+ "1")
 
-    def search_email(self, a=0, b=0):
-        return self.delayed_response(str(a) + "1")
+    def search_meetings(self, a=0, b=0, _id=None):
+        return self.task(_id, str(a)+"2")
 
-    def search_meetings(self, a=0, b=0):
-        return self.delayed_response(str(a) + "2")
-
-    def search_teams(self, a=0, b=0):
-        return self.delayed_response(str(b) + "3")
+    def search_teams(self, a=0, b=0, _id=None):
+        return self.task(_id, str(b)+"3")
 
     def Return(self, a):
         print(a)
 
     # dispatch loop functions for concurrency
-    def _add_task(self, task, dispatch):
+    def _add_task(self, task, id):
         with self.lock:
-            self._task_dispatch[task] = dispatch
-            self._task_list.append(task)
+            self._task_id[task]=id
+    
+    def _dispatch_actions(self):
+        actions_to_take = []
+        with self.lock:
+            for action in self.dag.keys():
+                if len(self.dag[action])==0:
+                    actions_to_take.append(action)
+                    
+            for key in actions_to_take:
+                del self.dag[key]
+            
+        for action in actions_to_take:
+            action()
+            
+        return self.dag
+        
+    def _update_dag(self, task):
+        with self.lock:
+            for targets in self.dag.values():
+                if task in targets:
+                   targets.remove(task)
 
-    def _dispatch(self, first):
-        first()
-        with self.lock:
-            notDone = self._task_list
-        while notDone:
+    def _dispatch(self, dag):
+        self.dag = dag
+        while self._dispatch_actions():
             task = self.signal_queue.get()  # Wait for a signal
-            with self.lock:
-                fn = self._task_dispatch[task]
-            fn()
-
+            self._update_dag(self._task_id[task])
+        
             self.signal_queue.task_done()  # Mark the signal as processed
-
-            # Remove the completed task from the list
-            with self.lock:
-                self._task_list.remove(task)
-                notDone = self._task_list
 
 
 # Class to allow operators to act the way we want on json
 # like results coming back from API calls and manipulations on those objects
 # we will broadly automate this conversion in classes that are inside
 # classes maked with JObject attribute, or in LLM generated code.
-#  a.b -> J(a).b  (through code transformation), unless we know a priori that the object is not a dictionary
+#  a.b -> J(a).b  (through code transformation), unless we know a priori that the object is not a dictionary 
 #
 class J:
     def __init__(self, data):
@@ -95,4 +104,6 @@ class J:
         if isinstance(self._data, dict):
             del self._data[key]
         else:
-            delattr(self._data, key)
+            delattr(self._data, key)   
+
+

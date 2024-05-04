@@ -1,4 +1,3 @@
-from . import safety
 import threading
 import time
 import io

@@ -195,9 +195,6 @@ class VerificationVisitor(ast.NodeVisitor):
                         "orchestrator functions must be assigned as task or in expr statements"
                     )
 
-            if name == rewriter.Rewriter.FUNCTIONADDTASK:
-                self.add_tasks.append(node.args[0].id)
-                return
             for arg in node.args:
                 if isinstance(arg, ast.Dict) and name == rewriter.Rewriter.FUNCTIONDISPATCH:
                     pass
@@ -216,12 +213,7 @@ class VerificationVisitor(ast.NodeVisitor):
                         raise ValueError(
                             "orchestrator function arguments must be ast.Name"
                         )
-            for kw in node.keywords:
-                if not isinstance(kw.value, ast.Name) and not isinstance(
-                    kw.value, ast.Constant
-                ):
-                    raise ValueError("orchestrator function arguments must be ast.Name")
-
+            
             if isAssignChild:
                 if len(self.statement.targets) == 1:
                     target = self.statement.targets[0]
@@ -339,8 +331,8 @@ class VerificationVisitor(ast.NodeVisitor):
     def Logprint(self, node, msg):
         # try:
         s = astor_fork.to_source(node).strip()
-        if len(s) > 20:
-            s = s[0:20] + "..."
+        if len(s) > 80:
+            s = s[0:80] + "..."
         # except Exception as e:
         #    s = str(e)
 

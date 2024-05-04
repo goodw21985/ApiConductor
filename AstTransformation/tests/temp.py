@@ -1,8 +1,22 @@
-import orchestrator
-orchestrator = orchestrator.Orchestrator()
+from ast_transform import test_orchestrator
 
 
-def _program(orchestrator):
+class MockOrchestrator(orchestrator.Orchestrator):
+
+    def search_email(self, a=0, b=0, _id=None):
+        return self.start_task(_id, str(a) + '1')
+
+    def search_meetings(self, a=0, b=0, _id=None):
+        return self.start_task(_id, str(a) + '2')
+
+    def search_teams(self, a=0, b=0, _id=None):
+        return self.start_task(_id, str(b) + '3')
+
+
+orchestrator = MockOrchestrator()
+
+
+def _program():
     _1 = _2 = _3 = _4 = _5 = _return_value = a = b = c = q = sum = sum2 = None
 
     def _concurrent_G0():
@@ -32,4 +46,4 @@ def _program(orchestrator):
     return _return_value
 
 
-orchestrator.Return(_program(orchestrator))
+orchestrator.Return(_program())
