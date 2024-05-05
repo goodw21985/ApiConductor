@@ -130,13 +130,13 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
             item = sub[key]
             item.notLocal = True
 
-        item[group].append(value)
+        item.usage.append((group,value))
 
     def add_class_variable_reference(self, key, group, value):
         dictionary = self.class_symbols_stack[-1]
         if key not in dictionary:
             dictionary[key] = common.SymbolTableEntry()
-        dictionary[key][group].append(value)
+        dictionary[key].usage.append((group,value))
 
     def push_symbol_table_stack(self, name):
         if name not in self.symbol_table:

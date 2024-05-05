@@ -44,10 +44,12 @@ def walk(t, pre=""):
             print(f"{pre}| redirect")
         if v.notLocal == True:
             print(f"{pre}| notlocal")
-        for x in attr:
-            if v[x]:
-                for y in v[x]:
-                    print(f"{pre}| {rename[x]} {Nodes(y)}")
+
+        for tuple1 in v.usage:
+            x = tuple1[0]
+            y = tuple1[1]
+            print(f"{pre}| {rename[x]} {Nodes(y)}")
+            
 
 
 config = common.Config()
@@ -100,14 +102,14 @@ return search_email(b)
 
         expected = """
 a
-| r #3
 | w #2
+| r #3
 search_email
 | r #2
 | r #4
 b
-| r #4
-| w #3"""
+| w #3
+| r #4"""
         self.check(source_code,expected)        
 
 #######################
@@ -145,14 +147,14 @@ return a,m
 
         expected = """
 m
-| r #29
 | rw #2
+| r #29
 a
+| m #3
 | r #3
 | r #3
 | r #3
 | r #29
-| m #3
 MyClass
 . __init__
 . x
@@ -172,8 +174,8 @@ MyClass
 . . lambda
 . . . x
 . . . | r #13
-. . . | r #13
 . . . | : #13
+. . . | r #13
 . . mf2
 . . . y1
 . . . | redirect
@@ -191,16 +193,16 @@ MyClass
 | r #26
 y
 | notlocal
-| r #13
 | w #10
+| r #13
 kjj
 obj
-| r #27
-| r #27
 | w #26
+| r #27
+| r #27
 func
-| r #28
 | w #27
+| r #28
 print
 | r #28"""
         self.check(source_code,expected)        

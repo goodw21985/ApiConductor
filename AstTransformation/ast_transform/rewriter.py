@@ -2,6 +2,7 @@ import ast
 import sys
 
 from ast_transform import scope_analyzer
+from ast_transform import common
 from ast_transform import astor_fork
 
 
@@ -138,7 +139,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
     def visit_Name2(self, node):
         symbol = self.current_node_lookup.symbol
-        if symbol.write:
+        if symbol.usage_by_type(common.SymbolTableEntry.ATTR_WRITE):
             groupname = self.current_node_lookup.assigned_concurrency_group.name
             self.add_nonlocal(groupname, node.id)
         return node

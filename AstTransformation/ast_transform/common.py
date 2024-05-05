@@ -21,34 +21,28 @@ class SymbolTableEntry:
     ATTR_AMBIGUOUS = "ambiguous"  # name of the declared attribute
 
     def __init__(self):
-        self.read = []  # which nodes read this symbol
-        self.write = []  # which notes write this symbol
-        self.readwrite = []  # which notes read/write this symbol
-        self.declared = []  # which notes declared this symbol
-        self.ambiguous = (
-            []
-        )  # which nodes had dangerous/ambiguous access to this symbol (example, for a: a[3]=5)
+        self.usage = []
+        #self.read = []  # which nodes read this symbol
+        #self.write = []  # which notes write this symbol
+        #self.readwrite = []  # which notes read/write this symbol
+        #self.declared = []  # which notes declared this symbol
+        #self.ambiguous = (
+        #    []
+        #)  # which nodes had dangerous/ambiguous access to this symbol (example, for a: a[3]=5)
         self.child = None  # this symbol is a class, function or lambda, and has a child symbol table
         self.redirect = None  # this symbol has been combined with another because of global or nonlocal
         self.notLocal = False  # true if this symbol was combined with an inner scope because of global or local
 
-    def __getitem__(self, key):
-        if key == SymbolTableEntry.ATTR_READ:
-            return self.read
-        elif key == SymbolTableEntry.ATTR_WRITE:
-            return self.write
-        elif key == SymbolTableEntry.ATTR_READ_WRITE:
-            return self.readwrite
-        elif key == SymbolTableEntry.ATTR_DECLARED:
-            return self.declared
-        elif key == SymbolTableEntry.ATTR_AMBIGUOUS:
-            return self.ambiguous
-        else:
-            raise ValueError(
-                "SymbolTableEntry does not have an attribute named '" + key + "'"
-            )
-
-
+    def usage_by_type(self, match_value):
+        return [item[1] for item in self.usage if item[0] == match_value]
+        
+    def GetTerminalNode(self):
+        if not self.child and len(self.usage)==1:
+            tuple1=self.usage[0]
+            if tuple1[0]==SymbolTableEntry.ATTR_WRITE:
+                return tuple1[1]
+        return None
+                
 #
 # NodeCrossReference is a sidecar structure where additional intellengence about a node is stored without
 # modifying the underlying node.

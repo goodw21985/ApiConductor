@@ -1,6 +1,8 @@
 import ast
 
 from . import scope_analyzer
+from . import common
+
 
 
 class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
@@ -220,10 +222,10 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
         if node.id == "sum2":
             node = node
         s = self.current_node_lookup
-        for writer in s.symbol.write:
+        for writer in s.symbol.usage_by_type(common.SymbolTableEntry.ATTR_WRITE):
             if len(writer) > 1:
                 self.visit(writer[-2])
-        for writer in s.symbol.readwrite:
+        for writer in s.symbol.usage_by_type(common.SymbolTableEntry.ATTR_READ_WRITE):
             if len(writer) > 1:
                 self.visit(writer[-2])
         return node
@@ -378,14 +380,9 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
             self.terminal_nodes.append(self.global_return_statement)
         else:
             for symbol in self.symbol_table.keys():
-                record = self.symbol_table[symbol]
-                if (
-                    not record.child
-                    and record.write
-                    and not record.read
-                    and len(record.write) == 1
-                ):
-                    self.terminal_nodes.append(record.write[0][-1])
+                terminal_node = self.symbol_table[symbol].GetTerminalNode()
+                if terminal_node:
+                    self.terminal_nodes.append(terminal_node[-1])
         if len(self.terminal_nodes) == 0:
             for node in self.critical_nodes:
                 self.terminal_nodes.append(node)
