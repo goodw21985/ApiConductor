@@ -208,8 +208,12 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
         if not isinstance(node.func, ast.Name):
             self.EndPath()
             
+        # any if conditions in the ifstack become depenedencies any target
         for if_parent in self.current_node_lookup.if_stack:
-            pass
+            conditions = if_parent.if_frame.conditions[:if_parent.blockIndex+1]
+            for condition in conditions:
+                self.visit(condition)
+                
         return node
 
     def visit_Name2(self, node):
@@ -392,7 +396,6 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
 
     def MarkDependencies(self, critical_node):
         self.tracking = critical_node
-        self.Log(critical_node, "***tracking")
         self.visit(self.tracking)
 
     def CreateDependencyGraphForCriticalNodes():

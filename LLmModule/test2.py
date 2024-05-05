@@ -6,7 +6,8 @@ def _program(orchestrator):
     _1 = _C0 = _C1 = _C2 = _return_value = a = n = None
 
     def _concurrent_G0():
-        nonlocal _C0, _C1
+        nonlocal _C0, _C1, n
+        n = 3
         _C0 = orchestrator.search_email(9, 0, _id='_C0')
         _C1 = orchestrator.search_email(5, 9, _id='_C1')
 
@@ -17,7 +18,6 @@ def _program(orchestrator):
 
     def _concurrent_G2():
         nonlocal _C2, _return_value, a, n
-        n = 3
         if n > 3:
             a = [_C0.Result, 2]
         else:

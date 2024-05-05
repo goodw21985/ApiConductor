@@ -73,33 +73,44 @@ return a
         expected = """
 n=search_meetings()
 if n>3:
-    a=search_email(9,0)
+    a=search_email()
 else:
-    a=search_email(5,9)
+    a=search_teams()
 
 return a
 
 
 C0 = search_meetings()
-C1 = search_email(9, 0)
-C2 = search_email(5, 9)
+C1 = search_email()
+C2 = search_teams()
 C3 = return a
+ n = search_meetings()
+if n > 3:
+    a = search_email()
+else:
+    a = search_teams()
+return a
+C1 C2 n = search_meetings()
+ n
 C0 => C1 C2 search_meetings()
 C0 search_meetings
-C1 => C3 search_email(9, 0)
-C1 search_email
-C1 9
-C1 0
-C2 => C3 search_email(5, 9)
-C2 search_email
-C2 5
-C2 9
-C3 =>  return a
-C3 a
-C3 a = search_email(9, 0)
+ if n > 3:
+    a = search_email()
+else:
+    a = search_teams()
+C1 C2 n > 3
+C1 C2 n
+C1 C2 3
+C3 a = search_email()
  a
-C3 a = search_email(5, 9)
- a"""
+C1 => C3 search_email()
+C1 search_email
+C3 a = search_teams()
+ a
+C2 => C3 search_teams()
+C2 search_teams
+C3 =>  return a
+C3 a"""
         result = self.get(source_code)
         self.assertEqual(result, expected.strip())
 

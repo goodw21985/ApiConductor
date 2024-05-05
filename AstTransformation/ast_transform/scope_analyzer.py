@@ -85,8 +85,6 @@ class ScopeAnalyzer(ast.NodeTransformer):
         return "C" + str(len(self.critical_node_names))
 
     def skip_visit(self, node):
-        if (self.pass_name=="dependency"):
-            self.Log(node, "skip")
         self.node_stack.append(node)
         self.current_node_stack = self.node_stack[:]
         if node not in self.node_lookup:
@@ -110,12 +108,8 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.current_node_lookup = self.node_lookup[node]
         # returns True if following should stop here
         if self.track_dependency(node):
-            if (self.pass_name=="dependency"):
-                self.Log(node, "stopped")
             ret = node
         else:
-            if (self.pass_name=="dependency"):
-                self.Log(node, "follow")
             ret = super().visit(node)
         self.node_stack.pop()
         return ret
@@ -439,6 +433,12 @@ class ScopeAnalyzer(ast.NodeTransformer):
         elif isinstance(node, ast.Store):
             pass
         elif isinstance(node, ast.keyword):
+            pass
+        elif isinstance(node, ast.unaryop):
+            pass
+        elif isinstance(node, ast.operator):
+            pass
+        elif isinstance(node, ast.cmpop):
             pass
         else:
             self.Logprint(node, msg)
