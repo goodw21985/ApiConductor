@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>346a99d3-62ae-4bde-8cd6-681338c2ab9a</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>tests\mock_run.py</StartupFile>
+    <StartupFile>tests\test_rewriter.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -40,6 +40,7 @@
     <Compile Include="ast_transform\astor_fork\string_repr.py" />
     <Compile Include="ast_transform\astor_fork\tree_walk.py" />
     <Compile Include="ast_transform\astor_fork\__init__.py" />
+    <Compile Include="ast_transform\common.py" />
     <Compile Include="ast_transform\test_orchestrator.py" />
     <Compile Include="ast_transform\orchestrator.py" />
     <Compile Include="ast_transform\safety.py" />

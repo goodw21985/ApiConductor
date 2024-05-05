@@ -1,86 +1,6 @@
 import ast
-from genericpath import samefile
 from ast_transform import astor_fork
-
-
-#
-# a symbol table is a dictionary with the key of the symbol and the value of SymbolTableEntry
-#
-# the symbol table has a heirarchy reflecting a scope stack.
-# a symbol table is a dictionary of symbols containng the properties below
-# this is heirarchical, because some symbols create a new scope (see children)
-#
-# the symbol table is build using VariablesAnalyzer.
-# as the AST is walked, the value of symbol table at any point is the current scope
-#
-# because the symbol table is heirarchical, the during parsing, the current symbol table will be
-# from the relevance place in the heirarchy
-#
-class SymbolTableEntry:
-    ATTR_READ = "read"  # name of the read attribute
-    ATTR_WRITE = "write"  # name of the write attribute
-    ATTR_READ_WRITE = "readwrite"  # name of the readwrite attribute
-    ATTR_DECLARED = "declared"  # name of the declared attribute
-    ATTR_AMBIGUOUS = "ambiguous"  # name of the declared attribute
-
-    def __init__(self):
-        self.read = []  # which nodes read this symbol
-        self.write = []  # which notes write this symbol
-        self.readwrite = []  # which notes read/write this symbol
-        self.declared = []  # which notes declared this symbol
-        self.ambiguous = (
-            []
-        )  # which nodes had dangerous/ambiguous access to this symbol (example, for a: a[3]=5)
-        self.child = None  # this symbol is a class, function or lambda, and has a child symbol table
-        self.redirect = None  # this symbol has been combined with another because of global or nonlocal
-        self.notLocal = False  # true if this symbol was combined with an inner scope because of global or local
-
-    def __getitem__(self, key):
-        if key == SymbolTableEntry.ATTR_READ:
-            return self.read
-        elif key == SymbolTableEntry.ATTR_WRITE:
-            return self.write
-        elif key == SymbolTableEntry.ATTR_READ_WRITE:
-            return self.readwrite
-        elif key == SymbolTableEntry.ATTR_DECLARED:
-            return self.declared
-        elif key == SymbolTableEntry.ATTR_AMBIGUOUS:
-            return self.ambiguous
-        else:
-            raise ValueError(
-                "SymbolTableEntry does not have an attribute named '" + key + "'"
-            )
-
-
-#
-# NodeCrossReference is a sidecar structure where additional intellengence about a node is stored without
-# modifying the underlying node.
-#
-# self.current_node_lookup contains this value for a node when the visit* is called.
-#
-# self.node_lookup[node] will return the following class instance as additional information that has been
-# accumulated so far about this node.   TODO:  is ast.node a valid key for a dictionary?
-#
-class NodeCrossReference:
-    def __init__(self, ancestors):
-        self.ancestors = ancestors  # the parent node stack of the current node
-        self.symbol = None  # the Symbol table entry for this if node, if this node references a symbol
-        self.dependency = []  # list of critical nodes that depend on this node
-        self.assigned_concurrency_group = None  # code grouping
-        self.reassigned = (
-            None  # name of expression if assigned to newly created variable
-        )
-        self.dependency_visited = (
-            False  # used to identify nodes not followed in dependency analysis
-        )
-
-class Config:
-    def __init__(self):
-        self.use_async = False
-        self.wrap_in_function_def = False
-        self.awaitable_functions = []
-        self.module_blacklist = None
-        self.log = False
+from ast_transform import common
 
 
 # This is the base class for the llmPython AST walker, and it keeps track of symbol tables and cross references implicitly
@@ -90,7 +10,9 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.symbol_table_stack = None  # no symbol table stack exists before VariablesAnalyzer is being or has been run
         self.symbol_table = None
         self.node_stack = []
+        self.if_stack = []
         self.current_node_stack = []
+        self.current_if_stack = []
         self.is_lambda_count = 0
         self.class_symbols_stack = []
         self.def_class_param_stack = []
@@ -100,6 +22,8 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.have_symbol_table = False
         self.global_return_statement = None
         self.tracking = None
+        self.in_condition_expr=False
+        self.mutating_condition_expr=False
         self.critical_dependencies = None
         self.concurrency_group_code = None
         self.concurrency_groups = None
@@ -126,7 +50,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
             "_contextvars",
             "contextvars",
         ]
-        if isinstance(copy, Config):
+        if isinstance(copy, common.Config):
             self.module_blacklist = copy.module_blacklist or self.module_blacklist
             self.config = copy
         elif copy == None:
@@ -139,7 +63,9 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.have_symbol_table = copy.symbol_table is not None
             self.symbol_table_stack = [self.symbol_table]
             self.node_stack = []
+            self.if_stack = []
             self.current_node_stack = []
+            self.current_if_stack = []
             self.is_lambda_count = 0
             self.class_symbols_stack = []
             self.def_class_param_stack = []
@@ -161,7 +87,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.current_node_stack = self.node_stack[:]
         if self.have_symbol_table:
             if node not in self.node_lookup:
-                self.current_node_lookup = NodeCrossReference(self.current_node_stack)
+                self.current_node_lookup = common.NodeCrossReference(self.current_node_stack,self.current_if_stack)
                 self.node_lookup[node] = self.current_node_lookup
             else:
                 self.current_node_lookup = self.node_lookup[node]
@@ -176,7 +102,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.current_node_stack = self.node_stack[:]
         if self.have_symbol_table:
             if node not in self.node_lookup:
-                self.current_node_lookup = NodeCrossReference(self.current_node_stack)
+                self.current_node_lookup = common.NodeCrossReference(self.current_node_stack, self.current_if_stack)
                 self.node_lookup[node] = self.current_node_lookup
             else:
                 self.current_node_lookup = self.node_lookup[node]
@@ -260,6 +186,30 @@ class ScopeAnalyzer(ast.NodeTransformer):
             node.id, self.current_node_stack
         )
 
+    def visit_If(self, node):
+        if node in self.if_lookup:
+            current_if_frame = self.if_lookup[node]
+        else:
+            current_if_frame = common.IfFrame(node, self.current_if_stack)
+
+        for i in range(len(current_if_frame.bodies)):
+            self.if_stack.append(current_if_frame.blockframes[i])
+            self.current_if_stack = self.if_stack[:]
+            if i<len(current_if_frame.bodies)-1:
+                self.in_condition_expr = True
+                self.mutating_condition_expr=False
+                self.visit(current_if_frame.conditions[i])
+                if self.mutating_condition_expr:
+                    current_if_frame.blockframes[i].is_mutating_condition=True
+                self.in_condition_expr = False
+                
+            self.visit(current_if_frame.bodies[i])
+            
+            # ... process regions
+            self.if_stack.pop()
+            self.current_if_stack = self.if_stack[:]
+        return node
+        
     def visit_Name(self, node):
         if self.have_symbol_table:
             if not self.IgnoreSymbol(node):

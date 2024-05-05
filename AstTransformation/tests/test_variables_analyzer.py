@@ -4,6 +4,7 @@ import unittest
 import ast
 from ast_transform import astor_fork
 from ast_transform import scope_analyzer
+from ast_transform import common
 from ast_transform import variables_analyzer
 from unittest.mock import patch
 import io
@@ -17,11 +18,11 @@ def Nodes(list):
 
 
 attr = [
-    scope_analyzer.SymbolTableEntry.ATTR_READ,
-    scope_analyzer.SymbolTableEntry.ATTR_WRITE,
-    scope_analyzer.SymbolTableEntry.ATTR_READ_WRITE,
-    scope_analyzer.SymbolTableEntry.ATTR_DECLARED,
-    scope_analyzer.SymbolTableEntry.ATTR_AMBIGUOUS,
+    common.SymbolTableEntry.ATTR_READ,
+    common.SymbolTableEntry.ATTR_WRITE,
+    common.SymbolTableEntry.ATTR_READ_WRITE,
+    common.SymbolTableEntry.ATTR_DECLARED,
+    common.SymbolTableEntry.ATTR_AMBIGUOUS,
 ]
 
 rename = {
@@ -49,7 +50,7 @@ def walk(t, pre=""):
                     print(f"{pre}| {rename[x]} {Nodes(y)}")
 
 
-config = scope_analyzer.Config()
+config = common.Config()
 config.awaitable_functions = []
 config.module_blacklist = None
 config.use_async = False

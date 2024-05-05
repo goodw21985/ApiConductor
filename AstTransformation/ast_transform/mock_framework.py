@@ -6,6 +6,7 @@ import ast
 from ast_transform import astor_fork
 from ast_transform import transform
 from ast_transform import scope_analyzer
+from ast_transform import common
 
 class Mock():
 
@@ -19,7 +20,7 @@ class Mock():
         self.target_ast = ast.parse(self.target_code)
         self.build_awaitable_functions_class()
 
-        config = scope_analyzer.Config()
+        config = common.Config()
         config.awaitable_functions=self.awaitable_functions
         config.module_blacklist=None
         config.use_async=False

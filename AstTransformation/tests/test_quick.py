@@ -8,11 +8,12 @@ from ast_transform import splitter_analyzer
 from ast_transform import dependency_analyzer
 from ast_transform import variables_analyzer
 from ast_transform import scope_analyzer
+from ast_transform import common
 from ast_transform import code_verification
 from unittest.mock import patch
 import io
 
-config = scope_analyzer.Config()
+config = common.Config()
 config.awaitable_functions= ["search_email", "search_teams","search_meetings"]
 config.module_blacklist=None
 config.use_async=False
@@ -23,8 +24,13 @@ config.log=True
 # long as there are no exceptions
 
 source_code = """
-a=[search_email(9,0), 2]
-return search_email(a[1])+1
+n=3
+if n>3:
+    a=[search_email(9,0), 2]
+else:
+    a=[search_email(5,9), 3]
+
+return search_email(a[1])
 """
 
 
