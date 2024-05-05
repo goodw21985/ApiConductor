@@ -105,19 +105,19 @@ G2 <= (C2) : uses G1
 G0 = search_email(9, 0)
 G1 = search_email(a[1])
 G2 = return search_email(a[1])
+G1: C1 a = [search_email(9, 0), 2]
+G1: C1 [search_email(9, 0), 2]
 G0: C1 search_email(9, 0)
 G0: C0 search_email
 G0: C0 9
 G0: C0 0
+G1: C1 2
+G2:  return search_email(a[1])
 G1: C2 search_email(a[1])
 G1: C1 search_email
 G1: C1 a[1]
 G1: C1 a
-G1: C1 a = [search_email(9, 0), 2]
-G1: C1 [search_email(9, 0), 2]
-G1: C1 2
-G1: C1 1
-G2:  return search_email(a[1])"""
+G1: C1 1"""
 
         result = self.get(source_code)
         print(result)
@@ -159,39 +159,39 @@ G0 = search_email(q)
 G1 = search_email(sum)
 G1 = search_teams(sum2)
 G2 = return c
+G0: C0 C1 C2 q = 3
+G0: C0 C1 C2 3
+G1: C1 C2 a = search_email(q)
 G0: C1 C2 search_email(q)
 G0: C0 search_email
 G0: C0 q
-G0: C0 C1 C2 q = 3
-G0: C0 C1 C2 3
-G1: C3 search_email(sum)
-G1: C1 search_email
-G1: C1 sum
 G1: C1 C2 sum = a + a2
 G1: C1 C2 a + a2
 G1: C1 C2 a
-G1: C1 C2 a = search_email(q)
 G1: C1 C2 a2
 G1: C1 C2 sum += q
 G1: C1 C2 sum
 G1: C1 C2 q
-G1: C3 search_teams(sum2)
-G1: C2 search_teams
-G1: C2 sum2
 G1: C2 sum2 = sum + 3
 G1: C2 sum + 3
 G1: C2 sum
 G1: C2 3
-G2:  return c
-G2: C3 c
-G2: C3 c = b
-G2: C3 b
 G2: C3 b = search_email(sum) >> 1 or search_teams(sum2) >> 2
 G2: C3 search_email(sum) >> 1 or search_teams(sum2) >> 2
 G2: C3 search_email(sum) >> 1
+G1: C3 search_email(sum)
+G1: C1 search_email
+G1: C1 sum
 G2: C3 1
 G2: C3 search_teams(sum2) >> 2
-G2: C3 2"""
+G1: C3 search_teams(sum2)
+G1: C2 search_teams
+G1: C2 sum2
+G2: C3 2
+G2: C3 c = b
+G2: C3 b
+G2:  return c
+G2: C3 c"""
         result = self.get(source_code)
         print(result)
         self.assertEqual(result, expected.strip())

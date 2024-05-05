@@ -11,6 +11,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.symbol_table = None
         self.node_stack = []
         self.if_stack = []
+        self.if_lookup = {}
         self.current_node_stack = []
         self.current_if_stack = []
         self.is_lambda_count = 0
@@ -64,6 +65,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.symbol_table_stack = [self.symbol_table]
             self.node_stack = []
             self.if_stack = []
+            self.if_lookup = copy.if_lookup
             self.current_node_stack = []
             self.current_if_stack = []
             self.is_lambda_count = 0
@@ -83,14 +85,15 @@ class ScopeAnalyzer(ast.NodeTransformer):
         return "C" + str(len(self.critical_node_names))
 
     def skip_visit(self, node):
+        if (self.pass_name=="dependency"):
+            self.Log(node, "skip")
         self.node_stack.append(node)
         self.current_node_stack = self.node_stack[:]
-        if self.have_symbol_table:
-            if node not in self.node_lookup:
-                self.current_node_lookup = common.NodeCrossReference(self.current_node_stack,self.current_if_stack)
-                self.node_lookup[node] = self.current_node_lookup
-            else:
-                self.current_node_lookup = self.node_lookup[node]
+        if node not in self.node_lookup:
+            self.current_node_lookup = common.NodeCrossReference(self.current_node_stack,self.current_if_stack)
+            self.node_lookup[node] = self.current_node_lookup
+        else:
+            self.current_node_lookup = self.node_lookup[node]
         if isinstance(node, ast.Name):
             self.skip_visit_Name(node)
         else:
@@ -100,30 +103,25 @@ class ScopeAnalyzer(ast.NodeTransformer):
     def visit(self, node):
         self.node_stack.append(node)
         self.current_node_stack = self.node_stack[:]
-        if self.have_symbol_table:
-            if node not in self.node_lookup:
-                self.current_node_lookup = common.NodeCrossReference(self.current_node_stack, self.current_if_stack)
-                self.node_lookup[node] = self.current_node_lookup
-            else:
-                self.current_node_lookup = self.node_lookup[node]
-            if self.pass_name == "dependency":
-                self.current_node_lookup.dependency_visited = True
-        if self.tracking:
-            if self.tracking in self.current_node_lookup.dependency:
-                # stop when we hit the same node
-                self.node_stack.pop()
-                return node
-            elif node != self.tracking:
-                self.current_node_lookup.dependency.append(self.tracking)
-
-            if node != self.tracking and node in self.critical_nodes:
-                # stop when we see another critical node
-                self.node_stack.pop()
-                return node
-
-        ret = super().visit(node)
+        if node not in self.node_lookup:
+            self.current_node_lookup = common.NodeCrossReference(self.current_node_stack, self.current_if_stack)
+            self.node_lookup[node] = self.current_node_lookup
+        else:
+            self.current_node_lookup = self.node_lookup[node]
+        # returns True if following should stop here
+        if self.track_dependency(node):
+            if (self.pass_name=="dependency"):
+                self.Log(node, "stopped")
+            ret = node
+        else:
+            if (self.pass_name=="dependency"):
+                self.Log(node, "follow")
+            ret = super().visit(node)
         self.node_stack.pop()
         return ret
+
+    def track_dependency(self, node):
+        return False
 
     def visit_Global(self, node):
         raise ValueError("global statement is not safe")
@@ -203,9 +201,9 @@ class ScopeAnalyzer(ast.NodeTransformer):
                     current_if_frame.blockframes[i].is_mutating_condition=True
                 self.in_condition_expr = False
                 
-            self.visit(current_if_frame.bodies[i])
+            for statement in current_if_frame.bodies[i]:
+                self.visit(statement)
             
-            # ... process regions
             self.if_stack.pop()
             self.current_if_stack = self.if_stack[:]
         return node
@@ -281,7 +279,6 @@ class ScopeAnalyzer(ast.NodeTransformer):
                 self.node_lookup[node].symbol = self.get_variable_reference(
                     arg.arg, self.current_node_stack
                 )
-                self.Log(node, "set node_lookup lambda")
         ret = self.visit_Lambda2(node)
 
         self.is_lambda_count += 1

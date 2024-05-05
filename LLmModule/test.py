@@ -7,7 +7,6 @@ def _program(orchestrator):
 
     def _concurrent_G0():
         nonlocal _C0, q
-        pass
         q = 3
         _C0 = orchestrator.search_email(q, 0, _id='_C0')
 
@@ -24,6 +23,7 @@ def _program(orchestrator):
 
     def _concurrent_G2():
         nonlocal _C1, _C2, _return_value, a, b, c, q, sum, sum2
+        pass
         b = _C1.Result + _C2.Result
         c = b
         _return_value = c

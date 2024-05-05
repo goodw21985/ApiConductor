@@ -59,6 +59,51 @@ class TestDependencyAnalyzerModule(unittest.TestCase):
             return result
 
 ##################################
+    def test_if_block(self):
+        source_code = """
+n=search_meetings()
+if n>3:
+    a=search_email()
+else:
+    a=search_teams()
+
+return a
+"""
+
+        expected = """
+n=search_meetings()
+if n>3:
+    a=search_email(9,0)
+else:
+    a=search_email(5,9)
+
+return a
+
+
+C0 = search_meetings()
+C1 = search_email(9, 0)
+C2 = search_email(5, 9)
+C3 = return a
+C0 => C1 C2 search_meetings()
+C0 search_meetings
+C1 => C3 search_email(9, 0)
+C1 search_email
+C1 9
+C1 0
+C2 => C3 search_email(5, 9)
+C2 search_email
+C2 5
+C2 9
+C3 =>  return a
+C3 a
+C3 a = search_email(9, 0)
+ a
+C3 a = search_email(5, 9)
+ a"""
+        result = self.get(source_code)
+        self.assertEqual(result, expected.strip())
+
+##################################
     def test_ambiguous(self):
         source_code = """
 a=[search_email(9,0), 2]
@@ -73,20 +118,22 @@ return search_email(a[1])
 C0 = search_email(9, 0)
 C1 = search_email(a[1])
 C2 = return search_email(a[1])
+ a = [search_email(9, 0), 2]
+return search_email(a[1])
+C1 a = [search_email(9, 0), 2]
+ a
+C1 [search_email(9, 0), 2]
 C0 => C1 search_email(9, 0)
 C0 search_email
 C0 9
 C0 0
+C1 2
+C2 =>  return search_email(a[1])
 C1 => C2 search_email(a[1])
 C1 search_email
 C1 a[1]
 C1 a
-C1 a = [search_email(9, 0), 2]
-C1 [search_email(9, 0), 2]
-C1 2
- a
-C1 1
-C2 =>  return search_email(a[1])"""
+C1 1"""
         result = self.get(source_code)
         self.assertEqual(result, expected.strip())
 
@@ -107,18 +154,21 @@ return x
 C0 = search_email(q)
 C1 = search_email(a)
 C2 = return x
+ a = search_email(q)
+x = search_email(a)
+return x
+C1 a = search_email(q)
+ a
 C0 => C1 search_email(q)
 C0 search_email
 C0 q
+C2 x = search_email(a)
+ x
 C1 => C2 search_email(a)
 C1 search_email
 C1 a
-C1 a = search_email(q)
- a
 C2 =>  return x
-C2 x
-C2 x = search_email(a)
- x"""
+C2 x"""
         result = self.get(source_code)
         self.assertEqual(result, expected.strip())
 
@@ -147,35 +197,41 @@ C0 = search_email(q)
 C1 = search_email(sum)
 C2 = search_teams(sum + 1)
 C3 = return b
+ q = 3
+a = search_email(q)
+sum = a * 3
+sum += q
+b = search_email(sum) or search_teams(sum + 1)
+return b
+C0 C1 C2 q = 3
+ q
+C0 C1 C2 3
+C1 C2 a = search_email(q)
+ a
 C0 => C1 C2 search_email(q)
 C0 search_email
 C0 q
-C0 C1 C2 q = 3
-C0 C1 C2 3
- q
-C1 => C3 search_email(sum)
-C1 search_email
-C1 sum
 C1 C2 sum = a * 3
+ sum
 C1 C2 a * 3
 C1 C2 a
-C1 C2 a = search_email(q)
- a
 C1 C2 3
- sum
 C1 C2 sum += q
 C1 C2 sum
 C1 C2 q
+C3 b = search_email(sum) or search_teams(sum + 1)
+ b
+C3 search_email(sum) or search_teams(sum + 1)
+C1 => C3 search_email(sum)
+C1 search_email
+C1 sum
 C2 => C3 search_teams(sum + 1)
 C2 search_teams
 C2 sum + 1
 C2 sum
 C2 1
 C3 =>  return b
-C3 b
-C3 b = search_email(sum) or search_teams(sum + 1)
-C3 search_email(sum) or search_teams(sum + 1)
- b"""
+C3 b"""
  
  #############################
         result = self.get(source_code2)

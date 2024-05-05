@@ -207,6 +207,9 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
         # cannot be delegate
         if not isinstance(node.func, ast.Name):
             self.EndPath()
+            
+        for if_parent in self.current_node_lookup.if_stack:
+            pass
         return node
 
     def visit_Name2(self, node):
@@ -389,10 +392,26 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
 
     def MarkDependencies(self, critical_node):
         self.tracking = critical_node
+        self.Log(critical_node, "***tracking")
         self.visit(self.tracking)
 
     def CreateDependencyGraphForCriticalNodes():
         pass
+    
+    def track_dependency(self, node):
+        self.current_node_lookup.dependency_visited = True
+
+        if self.tracking in self.current_node_lookup.dependency:
+            # stop when we hit the same node
+            return True
+        elif node != self.tracking:
+            self.current_node_lookup.dependency.append(self.tracking)
+
+        if node != self.tracking and node in self.critical_nodes:
+            # stop when we see another critical node
+            return True
+
+        return False
 
 
 def Scan(tree, parent=None):

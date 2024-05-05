@@ -97,7 +97,9 @@ class IfFrame:
             if len(loopnode.orelse)==1 and isinstance(loopnode.orelse[0], ast.If):
                 loopnode = loopnode.orelse[0]
             else:
-                self.bodies.append(loopnode.orelse)
+                if loopnode.orelse!=None and len(loopnode.orelse)>0:
+                    self.bodies.append(loopnode.orelse)
+                    self.blockframes.append(IfBlockFrame(len(self.blockframes),self))
                 break
     
 class IfBlockFrame:

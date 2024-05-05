@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>346a99d3-62ae-4bde-8cd6-681338c2ab9a</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>tests\test_rewriter.py</StartupFile>
+    <StartupFile>tests\test_splitter_analyzer.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
