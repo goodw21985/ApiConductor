@@ -156,9 +156,20 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
             if isinstance(item, ast.Assign):
                 return False
         return None
-
+    
+    def post_process(self, syms):
+        for name in syms.keys():
+            v = syms[name]
+            if v.child:
+                self.post_process(v.child)
+            if v.redirect:
+                pass
+            pass # I think the cross reference is badly organized
+            
+        pass
 
 def Scan(tree, config, parent=None):
     analyzer = VariablesAnalyzer(config, parent)
     analyzer.visit(tree)
+    analyzer.post_process(analyzer.symbol_table)
     return analyzer

@@ -68,6 +68,29 @@ class TestVariablesAnalyzerModule(unittest.TestCase):
         self.assertEqual(result, expected.strip())
 
 ##############
+    def test_ifreuse(self):
+        source_code = """
+a=None
+if n:
+    a=search_email()
+else:
+    a=search_teams()
+
+"""
+
+        expected = """
+a
+| w #2
+| w #4
+| w #6
+n
+| r #3
+search_email
+| r #4
+search_teams
+| r #6"""
+        self.check(source_code,expected)        
+##############
     def test_simple(self):
         source_code = """
 a=[search_email(9,0), 2]

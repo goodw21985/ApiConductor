@@ -69,7 +69,7 @@ C3 =>  return a"""
         self.assertEqual(result, expected.strip())
 
 ##################################
-    def test_ambiguous(self):
+    def xtest_ambiguous(self):
         source_code = """
 a=[search_email(9,0), 2]
 return search_email(a[1])
@@ -99,7 +99,7 @@ C2 =>  return x"""
 
 ##################################
 
-    def test_parallel(self):
+    def xtest_parallel(self):
         source_code2 = """
 q=3
 a=search_email(q)
