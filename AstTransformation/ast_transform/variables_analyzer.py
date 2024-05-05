@@ -157,14 +157,30 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                 return False
         return None
     
-    def post_process(self, syms):
-        for name in syms.keys():
-            v = syms[name]
-            if v.child:
-                self.post_process(v.child)
-            if v.redirect:
+    #redirects are causing the order to be wrong
+    #lambda adds a read for a pre declaration
+    def post_process_entry(self, symbol_table_entry):
+        for (access_type, node_stack) in symbol_table_entry.usage:
+            if access_type == common.SymbolTableEntry.ATTR_READ:
                 pass
-            pass # I think the cross reference is badly organized
+            elif access_type == common.SymbolTableEntry.ATTR_WRITE:
+                pass
+            elif access_type == common.SymbolTableEntry.ATTR_READ_WRITE:
+                pass
+            elif access_type == common.SymbolTableEntry.ATTR_DECLARED:
+                pass
+            elif access_type == common.SymbolTableEntry.ATTR_AMBIGUOUS:
+                pass
+        
+    def post_process(self, symbol_table):
+        for name in symbol_table.keys():
+            symbol_table_entry = symbol_table[name]
+            if symbol_table_entry.child:
+                self.post_process(symbol_table_entry.child)
+            elif symbol_table_entry.redirect:
+                pass
+            else:
+                self.post_process_entry(symbol_table_entry)
             
         pass
 

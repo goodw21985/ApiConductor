@@ -20,8 +20,13 @@ class SymbolTableEntry:
     ATTR_DECLARED = "declared"  # name of the declared attribute
     ATTR_AMBIGUOUS = "ambiguous"  # name of the declared attribute
 
+    BEHAVIOR_IMMUTABLE = "immutable"
+    BEHAVIOR_SHARED_CRITICAL = "shared_critical"
+    BEHAVIOR_UNUSED = "unused"
+
     def __init__(self):
         self.usage = []
+        self.behavior = set([])
         #self.read = []  # which nodes read this symbol
         #self.write = []  # which notes write this symbol
         #self.readwrite = []  # which notes read/write this symbol
