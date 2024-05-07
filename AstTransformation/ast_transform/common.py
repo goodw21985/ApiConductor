@@ -27,19 +27,15 @@ class SymbolTableEntry:
     def __init__(self):
         self.usage = []
         self.behavior = set([])
-        #self.read = []  # which nodes read this symbol
-        #self.write = []  # which notes write this symbol
-        #self.readwrite = []  # which notes read/write this symbol
-        #self.declared = []  # which notes declared this symbol
-        #self.ambiguous = (
-        #    []
-        #)  # which nodes had dangerous/ambiguous access to this symbol (example, for a: a[3]=5)
         self.child = None  # this symbol is a class, function or lambda, and has a child symbol table
         self.redirect = None  # this symbol has been combined with another because of global or nonlocal
         self.notLocal = False  # true if this symbol was combined with an inner scope because of global or local
 
-    def usage_by_type(self, match_value):
-        return [item[1] for item in self.usage if item[0] == match_value]
+    def add_usage(self, attr, node_cross_reference):
+        self.usage.append((attr, node_cross_reference))
+        
+    def usage_by_types(self, match_values):
+        return [item[1] for item in self.usage if item[0] in match_values]
         
     def GetTerminalNode(self):
         if not self.child and len(self.usage)==1:
@@ -47,7 +43,75 @@ class SymbolTableEntry:
             if tuple1[0]==SymbolTableEntry.ATTR_WRITE:
                 return tuple1[1]
         return None
-                
+    
+    # lambda adds a read for a pre declaration
+    
+    # immutable means no w or rw after a r
+    # any r before : can be ignored
+    # aggregate write means all writes within conditions
+    # are mutually exclusive
+
+    def is_immutable(self):
+        sawread=False
+        for (access_type, node_cross_reference) in self.usage:
+            if access_type == self.ATTR_READ:
+                sawread=True
+            elif access_type == self.ATTR_WRITE or access_type == self.ATTR_READ_WRITE:
+                if sawread:
+                    return False
+            elif access_type == self.ATTR_DECLARED:
+                sawread=True
+            elif access_type == self.ATTR_AMBIGUOUS:
+                return False
+        return True
+        
+    def is_declared(self):
+        for (access_type, node_cross_reference) in self.usage:
+            if access_type == self.ATTR_DECLARED:
+                return True
+        return False
+        
+    def is_declared(self):
+        for (access_type, node_cross_reference) in self.usage:
+            if access_type == self.ATTR_DECLARED:
+                return True
+        return False
+        
+    def is_set_unambiguously_across_if_blocks(self):
+        sawread=False
+        ifblockwrites = []
+        for (access_type, node_cross_reference) in self.usage:
+            if access_type == self.ATTR_READ:
+                sawread=True
+            elif access_type == self.ATTR_WRITE or access_type == self.ATTR_READ_WRITE:
+                if (node_cross_reference.if_stack):
+                    for other in ifblockwrites:
+                        if not self.mutually_exclusive_ifs(node_cross_reference.if_stack, other):
+                            return False
+                    ifblockwrites.append(node_cross_reference.if_stack)
+                elif ifblockwrites:
+                    return False
+                if sawread:
+                    return False
+            elif access_type == self.ATTR_DECLARED:
+                sawread=True
+            elif access_type == self.ATTR_AMBIGUOUS:
+                return False
+
+        if len(ifblockwrites)==0:
+            return False
+        return True
+
+    def mutually_exclusive_ifs(self, ifblock1, ifblock2):
+        shortest = min(len(ifblock1),len(ifblock2))
+        for i in range(shortest):
+            part1=ifblock1[i]
+            part2 = ifblock2[i]
+            if part1.if_frame != part2.if_frame:
+                return False
+            if part1.block_index != part2.block_index:
+                return True
+        return False
 #
 # NodeCrossReference is a sidecar structure where additional intellengence about a node is stored without
 # modifying the underlying node.
@@ -102,8 +166,8 @@ class IfFrame:
                 break
     
 class IfBlockFrame:
-    def __init__(self, blockIndex, if_frame):
+    def __init__(self, block_index, if_frame):
         self.is_mutating_condition=False
         self.if_frame = if_frame
-        self.blockIndex= blockIndex
+        self.block_index= block_index
         

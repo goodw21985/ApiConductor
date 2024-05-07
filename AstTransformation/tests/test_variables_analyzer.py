@@ -16,15 +16,6 @@ def Nodes(list):
 
     return "#" + str(last.lineno)
 
-
-attr = [
-    common.SymbolTableEntry.ATTR_READ,
-    common.SymbolTableEntry.ATTR_WRITE,
-    common.SymbolTableEntry.ATTR_READ_WRITE,
-    common.SymbolTableEntry.ATTR_DECLARED,
-    common.SymbolTableEntry.ATTR_AMBIGUOUS,
-]
-
 rename = {
     "read": "r",
     "write": "w",
@@ -37,7 +28,10 @@ rename = {
 def walk(t, pre=""):
     for name in t.keys():
         v = t[name]
-        print(f"{pre}{name}")
+        suffix=""
+        if v.is_set_unambiguously_across_if_blocks():
+            suffix += " is_set_unambiguously_across_if_blocks"
+        print(f"{pre}{name}{suffix}")
         if v.child:
             walk(v.child, pre + ". ")
         if v.redirect:
@@ -48,7 +42,7 @@ def walk(t, pre=""):
         for tuple1 in v.usage:
             x = tuple1[0]
             y = tuple1[1]
-            print(f"{pre}| {rename[x]} {Nodes(y)}")
+            print(f"{pre}| {rename[x]} {Nodes(y.ancestors)}")
             
 
 
@@ -69,28 +63,34 @@ class TestVariablesAnalyzerModule(unittest.TestCase):
         result = mock_stdout.getvalue().strip()
         self.assertEqual(result, expected.strip())
 
+    def runit(self,source_code):
+        tree = ast.parse(source_code)
+
+        analyzer1 = variables_analyzer.Scan(tree, config)
+        walk(analyzer1.symbol_table)
+
 ##############
     def test_ifreuse(self):
         source_code = """
 a=None
 if n:
     a=search_email()
-else:
-    a=search_teams()
-
+elif j:
+    if t:
+        a=search_teams()
 """
 
         expected = """
-a
+a is_set_unambiguously_across_if_blocks
 | w #2
 | w #4
-| w #6
+| w #7
 n
 | r #3
 search_email
 | r #4
 search_teams
-| r #6"""
+| r #7"""
         self.check(source_code,expected)        
 ##############
     def test_simple(self):

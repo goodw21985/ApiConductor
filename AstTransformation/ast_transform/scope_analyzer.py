@@ -200,6 +200,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
             
             self.if_stack.pop()
             self.current_if_stack = self.if_stack[:]
+
         return node
         
     def visit_Name(self, node):

@@ -139,7 +139,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
     def visit_Name2(self, node):
         symbol = self.current_node_lookup.symbol
-        if symbol.usage_by_type(common.SymbolTableEntry.ATTR_WRITE):
+        if symbol.usage_by_types([common.SymbolTableEntry.ATTR_WRITE]):
             groupname = self.current_node_lookup.assigned_concurrency_group.name
             self.add_nonlocal(groupname, node.id)
         return node

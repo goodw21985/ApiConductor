@@ -35,7 +35,7 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                 else:
                     group = common.SymbolTableEntry.ATTR_AMBIGUOUS
 
-            self.add_variable_reference(name, group, self.current_node_stack)
+            self.add_variable_reference(name, group, self.current_node_lookup)
         return node
 
     # looking for implicit async function usage.
@@ -52,7 +52,7 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
             self.add_variable_reference(
                 arg.arg,
                 common.SymbolTableEntry.ATTR_READ,
-                self.current_node_stack,
+                self.current_node_lookup,
             )
         return node
 
@@ -74,9 +74,9 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                 group = common.SymbolTableEntry.ATTR_AMBIGUOUS
 
         if isClass:
-            self.add_class_variable_reference(name, group, self.current_node_stack)
+            self.add_class_variable_reference(name, group, self.current_node_lookup)
         else:
-            self.add_variable_reference(name, group, self.current_node_stack)
+            self.add_variable_reference(name, group, self.current_node_lookup)
         return node
 
     def visit_arg2(self, node):
@@ -84,7 +84,7 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
             self.add_variable_reference(
                 node.arg,
                 common.SymbolTableEntry.ATTR_DECLARED,
-                self.current_node_stack,
+                self.current_node_lookup,
             )
         return node
 
@@ -130,13 +130,13 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
             item = sub[key]
             item.notLocal = True
 
-        item.usage.append((group,value))
+        item.add_usage(group,value)
 
     def add_class_variable_reference(self, key, group, value):
         dictionary = self.class_symbols_stack[-1]
         if key not in dictionary:
             dictionary[key] = common.SymbolTableEntry()
-        dictionary[key].usage.append((group,value))
+        dictionary[key].add_usage(group,value)
 
     def push_symbol_table_stack(self, name):
         if name not in self.symbol_table:
@@ -157,20 +157,8 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                 return False
         return None
     
-    #redirects are causing the order to be wrong
-    #lambda adds a read for a pre declaration
     def post_process_entry(self, symbol_table_entry):
-        for (access_type, node_stack) in symbol_table_entry.usage:
-            if access_type == common.SymbolTableEntry.ATTR_READ:
-                pass
-            elif access_type == common.SymbolTableEntry.ATTR_WRITE:
-                pass
-            elif access_type == common.SymbolTableEntry.ATTR_READ_WRITE:
-                pass
-            elif access_type == common.SymbolTableEntry.ATTR_DECLARED:
-                pass
-            elif access_type == common.SymbolTableEntry.ATTR_AMBIGUOUS:
-                pass
+        symbol_table_entry.is_set_unambiguously_across_if_blocks()
         
     def post_process(self, symbol_table):
         for name in symbol_table.keys():

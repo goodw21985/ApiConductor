@@ -212,22 +212,17 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
             
         # any if conditions in the ifstack become depenedencies any target
         for if_parent in self.current_node_lookup.if_stack:
-            conditions = if_parent.if_frame.conditions[:if_parent.blockIndex+1]
+            conditions = if_parent.if_frame.conditions[:if_parent.block_index+1]
             for condition in conditions:
                 self.visit(condition)
                 
         return node
 
     def visit_Name2(self, node):
-        if node.id == "sum2":
-            node = node
         s = self.current_node_lookup
-        for writer in s.symbol.usage_by_type(common.SymbolTableEntry.ATTR_WRITE):
-            if len(writer) > 1:
-                self.visit(writer[-2])
-        for writer in s.symbol.usage_by_type(common.SymbolTableEntry.ATTR_READ_WRITE):
-            if len(writer) > 1:
-                self.visit(writer[-2])
+        for writer in s.symbol.usage_by_types([common.SymbolTableEntry.ATTR_WRITE,common.SymbolTableEntry.ATTR_READ_WRITE]):
+            if len(writer.ancestors) > 1:
+                self.visit(writer.ancestors[-2])
         return node
 
     def visit_Constant(self, node):
@@ -382,7 +377,7 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
             for symbol in self.symbol_table.keys():
                 terminal_node = self.symbol_table[symbol].GetTerminalNode()
                 if terminal_node:
-                    self.terminal_nodes.append(terminal_node[-1])
+                    self.terminal_nodes.append(terminal_node.ancestors[-1])
         if len(self.terminal_nodes) == 0:
             for node in self.critical_nodes:
                 self.terminal_nodes.append(node)
