@@ -158,24 +158,24 @@ class NodeCrossReference:
         if len(self.ancestors)<2:
             return False
         assigner = self.ancestors[-2]
-        return self.is_constant(assigner.value)
+        return is_constant(assigner.value)
         
-    def is_constant(self, node):
-        if sys.version_info >= (3, 9):
-            if isinstance(node, ast.Constant):
-                return True
-        else:
-            if isinstance(node, ast.Num):
-                return True
-            if isinstance(node, ast.Str):
-                return True
-            if isinstance(node, ast.Bytes):
-                return True
-            if isinstance(node, ast.Ellipsis):
-                return True
-            if isinstance(node, ast.NameConstant):
-                return True
-        return False
+def is_constant(node):
+    if sys.version_info >= (3, 9):
+        if isinstance(node, ast.Constant):
+            return True
+    else:
+        if isinstance(node, ast.Num):
+            return True
+        if isinstance(node, ast.Str):
+            return True
+        if isinstance(node, ast.Bytes):
+            return True
+        if isinstance(node, ast.Ellipsis):
+            return True
+        if isinstance(node, ast.NameConstant):
+            return True
+    return False
 
 class Config:
     def __init__(self):

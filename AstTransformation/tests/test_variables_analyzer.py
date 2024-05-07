@@ -89,6 +89,8 @@ if n:
 elif j:
     if t:
         a=search_teams()
+    else:
+        a=None
 """
 
         expected = """
@@ -98,10 +100,13 @@ a is_set_unambiguously_across_if_blocks
 | w #2
 | w #4
 | w #7
+| w #9
 n
 | r #3
 search_email
 | r #4
+t
+| r #6
 search_teams
 | r #7"""
         self.check(source_code,expected)        

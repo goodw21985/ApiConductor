@@ -183,7 +183,7 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                        for writer_nodes in assigned_symbol.usage_by_types([common.SymbolTableEntry.ATTR_WRITE]):
                            if writer_nodes.if_stack and isinstance(writer_nodes.ancestors[-2], ast.Assign):
                                maybe_critical_node = writer_nodes.ancestors[-2].value
-                               if maybe_critical_node not in self.critical_nodes:
+                               if not common.is_constant(maybe_critical_node) and maybe_critical_node not in self.critical_nodes:
                                    ok=False
                                    
                 if not ok:

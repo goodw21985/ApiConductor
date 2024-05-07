@@ -3,6 +3,7 @@ import sys
 from multiprocessing import Value
 from ast_transform import astor_fork
 from ast_transform import rewriter
+from ast_transform import common
 
 
 class VerificationVisitor(ast.NodeVisitor):
@@ -198,7 +199,7 @@ class VerificationVisitor(ast.NodeVisitor):
             for arg in node.args:
                 if isinstance(arg, ast.Dict) and name == rewriter.Rewriter.FUNCTIONDISPATCH:
                     pass
-                elif not isinstance(arg, ast.Name) and not self.IsConstant(arg):
+                elif not isinstance(arg, ast.Name) and not common.is_constant(arg):
                     if (
                         isinstance(arg, ast.Call)
                         and isinstance(arg.func, ast.Name)
@@ -294,23 +295,6 @@ class VerificationVisitor(ast.NodeVisitor):
         child = next(iter(self.children.values()))
         child.checkawait()
         child.validateAll(validate)
-
-    def IsConstant(self, node):
-        if sys.version_info >= (3, 9):
-            if isinstance(node, ast.Constant):
-                return True
-        else:
-            if isinstance(node, ast.Num):
-                return True
-            if isinstance(node, ast.Str):
-                return True
-            if isinstance(node, ast.Bytes):
-                return True
-            if isinstance(node, ast.Ellipsis):
-                return True
-            if isinstance(node, ast.NameConstant):
-                return True
-        return False
 
     def Log(self, node, msg=None):
         if msg == None:
