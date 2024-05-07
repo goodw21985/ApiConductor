@@ -42,7 +42,7 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
     def visit_Call2(self, node):
         if isinstance(node.func, ast.Name):
             if node.func.id in self.config.awaitable_functions:
-                if self.ConcurrencySafeContext(self.node_stack):
+                if self.current_node_lookup.ConcurrencySafeContext():
                     self.critical_nodes.append(node)
                     self.critical_node_names[node]=self.new_critical_node_name()
         return node

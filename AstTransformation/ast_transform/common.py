@@ -1,4 +1,5 @@
 import ast
+import sys
 
 #
 # a symbol table is a dictionary with the key of the symbol and the value of SymbolTableEntry
@@ -84,12 +85,16 @@ class SymbolTableEntry:
             if access_type == self.ATTR_READ:
                 sawread=True
             elif access_type == self.ATTR_WRITE or access_type == self.ATTR_READ_WRITE:
+                if not node_cross_reference.ConcurrencySafeContext():
+                    return False
                 if (node_cross_reference.if_stack):
                     for other in ifblockwrites:
                         if not self.mutually_exclusive_ifs(node_cross_reference.if_stack, other):
                             return False
                     ifblockwrites.append(node_cross_reference.if_stack)
                 elif ifblockwrites:
+                    return False
+                elif not node_cross_reference.is_constant_write():
                     return False
                 if sawread:
                     return False
@@ -112,6 +117,7 @@ class SymbolTableEntry:
             if part1.block_index != part2.block_index:
                 return True
         return False
+    
 #
 # NodeCrossReference is a sidecar structure where additional intellengence about a node is stored without
 # modifying the underlying node.
@@ -134,6 +140,40 @@ class NodeCrossReference:
         self.dependency_visited = (
             False  # used to identify nodes not followed in dependency analysis
         )
+        
+    def ConcurrencySafeContext(self):
+        for node in self.ancestors:
+            if isinstance(node, ast.For):
+                return False
+            if isinstance(node, ast.While):
+                return False
+            if isinstance(node, ast.With):
+                return False
+            if isinstance(node, ast.Try):
+                return False
+        return True
+    def is_constant_write(self):
+        if len(self.ancestors)<2:
+            return False
+        assigner = self.ancestors[-2]
+        return self.is_constant(assigner.value)
+        
+    def is_constant(self, node):
+        if sys.version_info >= (3, 9):
+            if isinstance(node, ast.Constant):
+                return True
+        else:
+            if isinstance(node, ast.Num):
+                return True
+            if isinstance(node, ast.Str):
+                return True
+            if isinstance(node, ast.Bytes):
+                return True
+            if isinstance(node, ast.Ellipsis):
+                return True
+            if isinstance(node, ast.NameConstant):
+                return True
+        return False
 
 class Config:
     def __init__(self):

@@ -408,18 +408,6 @@ class ScopeAnalyzer(ast.NodeTransformer):
             else:
                 return (list[0], False, True)
 
-    def ConcurrencySafeContext(self, nodestack):
-        for node in nodestack:
-            if isinstance(node, ast.For):
-                return False
-            if isinstance(node, ast.While):
-                return False
-            if isinstance(node, ast.With):
-                return False
-            if isinstance(node, ast.Try):
-                return False
-        return True
-
     def Log(self, node, msg=None):
         if not self.config.log:
             return

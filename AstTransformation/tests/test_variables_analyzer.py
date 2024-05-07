@@ -93,6 +93,62 @@ search_teams
 | r #7"""
         self.check(source_code,expected)        
 ##############
+    def test_ifreuse2(self):
+        source_code = """
+a=None
+if n:
+    for i in range(2):
+        a=search_email()
+elif j:
+    if t:
+        a=search_teams()
+"""
+
+        expected = """
+a
+| w #2
+| w #5
+| w #8
+n
+| r #3
+i
+| m #4
+range
+| r #4
+search_email
+| r #5
+search_teams
+| r #8"""
+        self.check(source_code,expected)        
+##############
+    def test_ifreuse3(self):
+        source_code = """
+a=None
+if n:
+    a=search_email()
+elif j:
+    if t:
+        a=search_teams()
+if q:
+    a=search_teams()
+
+"""
+
+        expected = """
+a
+| w #2
+| w #4
+| w #7
+| w #9
+n
+| r #3
+search_email
+| r #4
+search_teams
+| r #7
+| r #9"""
+        self.check(source_code,expected)        
+##############
     def test_simple(self):
         source_code = """
 a=[search_email(9,0), 2]
