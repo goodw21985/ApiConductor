@@ -20,6 +20,8 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.node_lookup = {}
         self.critical_nodes = None
         self.critical_node_names = None
+        self.non_concurrent_critical_nodes = None
+        self.critical_nodes_if_groups = None        
         self.have_symbol_table = False
         self.global_return_statement = None
         self.tracking = None
@@ -72,6 +74,8 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.class_symbols_stack = []
             self.def_class_param_stack = []
             self.critical_nodes = copy.critical_nodes
+            self.non_concurrent_critical_nodes = copy.non_concurrent_critical_nodes
+            self.critical_nodes_if_groups = copy.critical_nodes_if_groups            
             self.critical_node_names = copy.critical_node_names
             self.node_lookup = copy.node_lookup
             self.tracking = None

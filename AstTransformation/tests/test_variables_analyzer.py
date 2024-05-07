@@ -24,7 +24,17 @@ rename = {
     "ambiguous": "m",
 }
 
-
+def print_critical(analyzer):
+    for critical in analyzer.critical_nodes:
+        name = analyzer.critical_node_names[critical]
+        if critical in analyzer.non_concurrent_critical_nodes:
+            name += " non-concurrent "
+        elif critical in analyzer.critical_nodes_if_groups:
+            name += " => "+analyzer.critical_nodes_if_groups[critical]
+        else:
+            name += " concurrent "
+        print(name)
+    
 def walk(t, pre=""):
     for name in t.keys():
         v = t[name]
@@ -47,7 +57,7 @@ def walk(t, pre=""):
 
 
 config = common.Config()
-config.awaitable_functions = []
+config.awaitable_functions = ["search_email", "search_teams"]
 config.module_blacklist = None
 config.use_async = False
 
@@ -59,6 +69,7 @@ class TestVariablesAnalyzerModule(unittest.TestCase):
         tree = ast.parse(source_code)
 
         analyzer1 = variables_analyzer.Scan(tree, config)
+        print_critical(analyzer1)
         walk(analyzer1.symbol_table)
         result = mock_stdout.getvalue().strip()
         self.assertEqual(result, expected.strip())
@@ -81,6 +92,8 @@ elif j:
 """
 
         expected = """
+C0 => a
+C1 => a
 a is_set_unambiguously_across_if_blocks
 | w #2
 | w #4
@@ -105,6 +118,8 @@ elif j:
 """
 
         expected = """
+C0 non-concurrent 
+C1 non-concurrent 
 a
 | w #2
 | w #5
@@ -135,6 +150,9 @@ if q:
 """
 
         expected = """
+C0 non-concurrent 
+C1 non-concurrent 
+C2 non-concurrent 
 a
 | w #2
 | w #4
@@ -157,6 +175,8 @@ return search_email(b)
 """
 
         expected = """
+C0 concurrent 
+C1 concurrent 
 a
 | w #2
 | r #3

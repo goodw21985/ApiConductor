@@ -24,21 +24,26 @@ config.log=True
 # long as there are no exceptions
 
 source_code = """
-n=3
+n=search_meetings()
 if n>3:
-    a=[search_email(9,0), 2]
+    a=search_email()
 else:
-    a=[search_email(5,9), 3]
+    a=search_teams()
 
-return search_email(a[1])
+return a
 """
 
 
 class TestQuickModule(unittest.TestCase):
     def test_split(self):
-        self.check(source_code)
+         result = self.get(source_code)
         
-        
+    def get(self, code):
+            tree = ast.parse(code)
+            analyzer1 = variables_analyzer.Scan(tree, config)
+            analyzer2 = dependency_analyzer.Scan(tree, analyzer1)
+            walk(analyzer2)
+   
     def check(self, code):
         tree = ast.parse(code)
         if config.wrap_in_function_def:
@@ -51,6 +56,21 @@ class TestQuickModule(unittest.TestCase):
         print(result)
         with open("C:/repos/llmPython/LLmModule/test2.py", 'w') as file:
             file.write(result)  
+
+def walk(analyzer2: dependency_analyzer.DependencyAnalyzer):
+    named = analyzer2.critical_node_names
+    crit = analyzer2.critical_nodes
+    for n in analyzer2.node_lookup.keys():
+        nodec = analyzer2.node_lookup[n]
+        try:
+            if n in crit:
+                code = astor_fork.to_source(n).strip()
+                result = " ".join([named[item] for item in nodec.dependency])
+                result = named[n] + " => " + result
+                print(result + " " + code)
+        except Exception:
+            pass
+    pass
         
 if __name__ == '__main__':
     unittest.main()

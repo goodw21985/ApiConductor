@@ -12,6 +12,8 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
         self.symbol_table_stack.append({})
         self.symbol_table = self.symbol_table_stack[-1]
         self.critical_nodes = []
+        self.non_concurrent_critical_nodes = set([])
+        self.critical_nodes_if_groups = {}
         self.critical_node_names = {}
         self.global_return_statement = None
     
@@ -42,9 +44,10 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
     def visit_Call2(self, node):
         if isinstance(node.func, ast.Name):
             if node.func.id in self.config.awaitable_functions:
-                if self.current_node_lookup.ConcurrencySafeContext():
-                    self.critical_nodes.append(node)
-                    self.critical_node_names[node]=self.new_critical_node_name()
+                self.critical_nodes.append(node)
+                self.critical_node_names[node]=self.new_critical_node_name()
+                if not self.current_node_lookup.is_concurrency_safe_context():
+                    self.non_concurrent_critical_nodes.add(node)
         return node
 
     def visit_Lambda2(self, node):
@@ -157,23 +160,40 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                 return False
         return None
     
-    def post_process_entry(self, symbol_table_entry):
-        symbol_table_entry.is_set_unambiguously_across_if_blocks()
-        
-    def post_process(self, symbol_table):
-        for name in symbol_table.keys():
-            symbol_table_entry = symbol_table[name]
-            if symbol_table_entry.child:
-                self.post_process(symbol_table_entry.child)
-            elif symbol_table_entry.redirect:
-                pass
-            else:
-                self.post_process_entry(symbol_table_entry)
+    def post_process(self):
+        # any critical nodes in if conditions will be grouped by the
+        # values that they are assigned to, and if anything looks fishy flag it
+        # as non-concurrent, which will force a wait immediately after the call
+        for critical in self.critical_nodes:
+            if isinstance(critical, ast.Call):
+                call_lookup_node = self.node_lookup[critical]
+                if not call_lookup_node.if_stack:
+                    continue
+                parent = call_lookup_node.ancestors[-2]
+                ok = False
+                if isinstance(parent, ast.Assign) and len(parent.targets)==1 and isinstance(parent.targets[0], ast.Name):
+                    symbol_name = parent.targets[0].id
+
+                    parent_lookup_node = self.node_lookup[parent.targets[0]]
+                    assigned_symbol = self.get_variable_reference(
+                       symbol_name, parent_lookup_node.ancestors)
+                    
+                    if assigned_symbol.is_set_unambiguously_across_if_blocks():
+                       ok = True
+                       for writer_nodes in assigned_symbol.usage_by_types([common.SymbolTableEntry.ATTR_WRITE]):
+                           if writer_nodes.if_stack and isinstance(writer_nodes.ancestors[-2], ast.Assign):
+                               maybe_critical_node = writer_nodes.ancestors[-2].value
+                               if maybe_critical_node not in self.critical_nodes:
+                                   ok=False
+                                   
+                if not ok:
+                    self.non_concurrent_critical_nodes.add(critical)
+                else:
+                    self.critical_nodes_if_groups[critical]=symbol_name
             
-        pass
 
 def Scan(tree, config, parent=None):
     analyzer = VariablesAnalyzer(config, parent)
     analyzer.visit(tree)
-    analyzer.post_process(analyzer.symbol_table)
+    analyzer.post_process()
     return analyzer

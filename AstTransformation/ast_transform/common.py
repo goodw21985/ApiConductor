@@ -84,10 +84,10 @@ class SymbolTableEntry:
         for (access_type, node_cross_reference) in self.usage:
             if access_type == self.ATTR_READ:
                 sawread=True
-            elif access_type == self.ATTR_WRITE or access_type == self.ATTR_READ_WRITE:
-                if not node_cross_reference.ConcurrencySafeContext():
+            elif access_type == self.ATTR_WRITE:
+                if not node_cross_reference.is_concurrency_safe_context():
                     return False
-                if (node_cross_reference.if_stack):
+                if node_cross_reference.if_stack:
                     for other in ifblockwrites:
                         if not self.mutually_exclusive_ifs(node_cross_reference.if_stack, other):
                             return False
@@ -101,6 +101,8 @@ class SymbolTableEntry:
             elif access_type == self.ATTR_DECLARED:
                 sawread=True
             elif access_type == self.ATTR_AMBIGUOUS:
+                return False
+            elif access_type == self.ATTR_READ_WRITE:
                 return False
 
         if len(ifblockwrites)==0:
@@ -141,7 +143,7 @@ class NodeCrossReference:
             False  # used to identify nodes not followed in dependency analysis
         )
         
-    def ConcurrencySafeContext(self):
+    def is_concurrency_safe_context(self):
         for node in self.ancestors:
             if isinstance(node, ast.For):
                 return False
