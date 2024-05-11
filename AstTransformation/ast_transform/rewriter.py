@@ -5,6 +5,22 @@ from ast_transform import scope_analyzer
 from ast_transform import common
 from ast_transform import astor_fork
 
+# this class rewrites the code by creating a function for
+# each concurrency group, and creating a dag that references 
+# these functions.  In the main program function that is 
+# created, a single call is made to a dispatcher with the dag
+#
+# the original code is walked and sections of that code are
+# placed in one (or more) concurrency group functions.
+#
+# concurrency group functions do not use parameters, and share
+# all variables with each other and the program via the python nonlocal statement
+#
+# three dictionaries are used to build the concurrency groups code, 
+# each keyed off the concurrency group:
+# concurrency_start_code: lines of code needed to be run first (usually about unpacking variables with async completion)
+# concurrency_group_code: lines of code for the body of the function
+# concurrency_group_nonlocals: all shared variables used by this function
 
 class Rewriter(scope_analyzer.ScopeAnalyzer):
     ORCHESTRATOR = "orchestrator"
@@ -15,6 +31,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     FUNCTIONPREFIX = "_concurrent_"
     RETURN_VALUE_NAME = "_return_value"
     FUNCTIONDISPATCH = "_dispatch"
+    FUNCTIONCOMPLETE = "_complete"
     RESULTNAME = "Result"
     TASKFUNCTION = "Task"
     TASKCLASS = "Task"
@@ -26,6 +43,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         self.unique_name_id = 0
         self.unique_names = {}
         self.dag = {}
+        self.dag_aggregate_groups = set([])
         for group in self.concurrency_groups:
             self.dag[self.FUNCTIONPREFIX+group.name]=[]
 
@@ -84,11 +102,32 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         self.add_nonlocal(groupname, call_id)
         self.allnonlocals.add(call_id)
 
-        triggered = group.triggers[0]
-
-        delegate = self.FUNCTIONPREFIX + triggered.name
-        if call_id not in self.dag[delegate]:
-            self.dag[delegate].append(call_id)
+        for triggered in group.triggers:
+        
+        #_concurrent_G0: [],
+        # _concurrent_G1: ['_C0'],
+        #  _concurrent_G2: [],   <== ['G_a']
+        #   _concurrent_G3: ['_C3'], 
+        #   _concurrent_G_a: ['_C1', '_C2']  <== [[...]]
+    
+            delegate = self.FUNCTIONPREFIX + triggered.name
+            if triggered.is_aggregation_group:
+                self.dag_aggregate_groups.add(delegate)
+                for retriggered in triggered.triggers:
+                    redelegate = self.FUNCTIONPREFIX +retriggered.name
+                    if triggered.name not in self.dag[redelegate]:
+                        self.dag[redelegate].append(triggered.name)
+            
+                # embed the list within a list that only contains the outer list
+                # as a flag to the dispatcher that this is OR list not and AND list        
+                if len(self.dag[delegate])==0:
+                    self.dag[delegate].append([])
+                if call_id not in self.dag[delegate][0]:
+                    self.dag[delegate][0].append(call_id)
+             
+            else:
+                if call_id not in self.dag[delegate]:
+                    self.dag[delegate].append(call_id)
             
         # add nonlocals data
         self.add_nonlocal(groupname, call_id)
@@ -132,7 +171,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         groupname = nodec.assigned_concurrency_group.name
         unique_name = self.MakeUniqueName()
         assign = ast.Assign(targets=[self.MakeStoreName(unique_name)], value=node)
-        self.concurrency_group_code[groupname].append(assign)
+        self.add_concurrency_group_code(groupname, assign)
         self.add_nonlocal(groupname, unique_name)
 
         return self.MakeLoadName(unique_name)
@@ -172,8 +211,6 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         self.allnonlocals = set([self.RETURN_VALUE_NAME])
 
-        if self.concurrency_groups[0] == None:
-            raise ValueError("165")
         statement_group_name = self.concurrency_groups[0].name
         for statement in node.body:
             if statement in self.node_lookup:
@@ -182,12 +219,14 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 # add to previous group
                 statement_node_lookup = self.node_lookup[statement]
                 self.statement_group = statement_node_lookup.assigned_concurrency_group
-                if self.statement_group == None:
-                    raise ValueError("174")
                 statement_group_name = self.statement_group.name
             new_statement = self.visit(statement)
-            self.concurrency_group_code[statement_group_name].append(new_statement)
+            self.add_concurrency_group_code(statement_group_name, new_statement)
 
+        for group in self.concurrency_groups:
+            if group.is_aggregation_group:
+                self.concurrency_group_code[group.name].append(self.aggregation_completion(group.name))
+                
         for groupname in self.concurrency_group_code.keys():
             if groupname in self.concurrency_start_code:
                 self.concurrency_group_code[groupname] += self.concurrency_start_code[
@@ -307,6 +346,9 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         else:
             return ast.Module(body=module_statements)
 
+    def add_concurrency_group_code(self, group_name, statement):
+        self.concurrency_group_code[group_name].append(statement)
+
     def prependNonlocals(self, list, symbols):
         new_list = []
         new_list.append(ast.Nonlocal(names=sorted(symbols)))
@@ -356,6 +398,18 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             )
 
         return function_def
+        
+    def aggregation_completion(self,name):
+        # => orchestrator._complete("G_a")
+        return ast.Expr(ast.Call(
+            func=ast.Attribute(
+                value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
+                attr=self.FUNCTIONCOMPLETE,
+                ctx=ast.Load(),
+            ),
+            args=[self.MakeString(name)],
+            keywords=[],
+        ))
         
     def MakeTask(self, node):
         if self.config.use_async:
