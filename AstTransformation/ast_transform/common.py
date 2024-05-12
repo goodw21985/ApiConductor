@@ -186,7 +186,6 @@ class Config:
 
 class IfFrame:
     def __init__(self, node, if_stack):
-        ast.If
         self.node =node
         self.if_stack = if_stack
         self.bodies = []

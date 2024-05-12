@@ -18,7 +18,7 @@ from ast_transform import astor_fork
 #
 # three dictionaries are used to build the concurrency groups code, 
 # each keyed off the concurrency group:
-# concurrency_start_code: lines of code needed to be run first (usually about unpacking variables with async completion)
+# concurrency_start_code: code that starts an async critical node
 # concurrency_group_code: lines of code for the body of the function
 # concurrency_group_nonlocals: all shared variables used by this function
 
@@ -46,7 +46,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         self.dag_aggregate_groups = set([])
         for group in self.concurrency_groups:
             self.dag[self.FUNCTIONPREFIX+group.name]=[]
-
+            
     def visit_Return(self, node):
         # _return_value = x
         groupname = self.current_node_lookup.assigned_concurrency_group.name
@@ -93,7 +93,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         #group = self.critical_node_to_group[node]
         groupname = group.name
         assign = ast.Assign(targets=[self.MakeStoreName(call_id)], value=call)
-        self.concurrency_start_code[groupname].append(assign)
+        self.concurrency_start_code[groupname].append((node,assign))
         self.add_nonlocal(groupname, call_id)
         self.allnonlocals.add(call_id)
 
@@ -214,12 +214,15 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         for group in self.concurrency_groups:
             if group.is_aggregation_group:
                 self.concurrency_group_code[group.name].append(self.aggregation_completion(group.name))
+
+        self.PrescanStartCode()        
                 
         for groupname in self.concurrency_group_code.keys():
             if groupname in self.concurrency_start_code:
-                self.concurrency_group_code[groupname] += self.concurrency_start_code[
+                
+                self.concurrency_group_code[groupname] += self.BuildStartCode(self.concurrency_start_code[
                     groupname
-                ]
+                ])
 
         for groupname in self.concurrency_group_nonlocals:
             self.concurrency_group_code[groupname] = self.prependNonlocals(
@@ -353,7 +356,110 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
     def DoWait(self, node):
         return ast.Attribute(value=node, attr=self.RESULTNAME, ctx=ast.Load())
-    
+
+    def PrescanStartCode(self):
+        return
+        ifgroups = {}
+        for groupname in self.concurrency_group_code.keys():
+            if groupname in self.concurrency_start_code:
+                start_list = self.concurrency_start_code[groupname]
+                for (node, assignStatement) in start_list:
+                    nodec = self.node_lookup[node]
+                    if nodec.if_stack:
+                        ifframe =nodec.if_stack[0].if_frame
+                        if ifframe not in ifgroups:
+                            ifgroups[ifframe]=[]
+                        ifgroups[ifframe].append((groupname, node, assignStatement))    
+                        
+        self.pre_scanned_if={}
+        for ifgroup in ifgroups:
+            self.pre_scanned_if[ifgroup] = self.PreScanGroup(ifgroup, ifgroups[ifgroup])
+
+    def PreScanGroup(self, if_group, start_list):
+        if_stacks={}
+        if_stack_usage={}
+        if_stack_ids=[]
+        for (groupname, node, assignStatement) in start_list:
+            nodec = self.node_lookup[node]
+            if_stack = nodec.if_stack
+            if_stack_id_parts = [str(obj.block_index) for obj in if_stack]
+            if_stack_id_parts_padded = [num.zfill(3) for num in if_stack_id_parts]
+            if_stack_id = ".".join(if_stack_id_parts_padded)
+            if if_stack_id not in if_stack_usage:
+                if_stack_ids.append(if_stack_id)
+                if_stack_usage[if_stack_id]=if_stack
+                if_stacks[if_stack_id]=[]
+            if_stack_usage[if_stack_id].append((node,assignStatement))
+        
+        sorted_if_stack_ids=sorted(if_stack_ids)
+        return (sorted_if_stack_ids, if_stack_usage, if_stacks)
+
+    # a list cannot be a key to a dictionary, and this creates an id
+    # that is also sortable                    
+    def IfStackId(self, if_stack):
+        if_stack_id_parts = [str(obj.block_index) for obj in if_stack]
+        if_stack_id_parts_padded = [num.zfill(3) for num in if_stack_id_parts]
+        if_stack_id = ".".join(if_stack_id_parts_padded)
+        return if_stack_id
+        
+    def BuildStartCode(self, start_list):
+        statements = []
+        # statements need to be grouped under if trees, and there can be more than one
+        ifgroups = {}
+        for (node, assignStatement) in start_list:
+            nodec = self.node_lookup[node]
+            if not nodec.if_stack:
+                statements.append(assignStatement)
+            else:
+                ifframe =nodec.if_stack[0].if_frame
+                if ifframe not in ifgroups:
+                    ifgroups[ifframe]=[]
+                ifgroups[ifframe].append((node, assignStatement))    
+                
+        for ifgroup in ifgroups.keys():
+            for statement in self.BuildStartIfTree(ifgroup, ifgroups[ifgroup]):
+                statements.append(statement)
+
+        return statements
+
+    @staticmethod
+    def Not(expr):
+        return ast.UnaryOp(op=ast.Not(), operand=expr)
+
+    @staticmethod
+    def And(a, b0, invert_b=False):
+        if b0==None:
+            return a
+        b= Rewriter.Not(b0) if invert_b else b0
+        
+        if a==None:
+            return b
+        return ast.BoolOp(op=ast.And(), values=[a, b])
+
+    def BuildStartIfTree(self, if_group, start_list):
+        statements = []
+        for (node, assignStatement) in start_list:
+            nodec = self.node_lookup[node]
+            condition_node = None
+            if_stack = nodec.if_stack
+            for stack_frame in if_stack:
+                block_index = stack_frame.block_index
+                if_frame = stack_frame.if_frame
+                expr = None
+                for index in range(block_index+1):
+                    if index < len(if_frame.conditions):
+                        condition = if_frame.conditions[index]
+                        expr = Rewriter.And(expr, condition, index<block_index)
+                        
+                condition_node = Rewriter.And(condition_node, expr)
+                if_stmt = ast.If(
+                    test=condition_node, 
+                    body=[assignStatement],  
+                    orelse=[])
+                statements.append(if_stmt)
+                 
+        return statements
+        
     def MakeFunctionDef(self, name, body, isAsync=False, inargs=None):
         args = inargs or ast.arguments(
             args=[],           
@@ -402,15 +508,6 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 value=ast.Name(self.ORCHESTRATOR, ctx=ast.Load()),
                 attr=self.TASKFUNCTION,
                 ctx=ast.Load(),
-            ),
-            args=[node],
-            keywords=[],
-        )
-
-    def MakeRun(self, node):
-        return ast.Call(
-            func=ast.Attribute(
-                value=ast.Name(id="asyncio", ctx=ast.Load()), attr="run", ctx=ast.Load()
             ),
             args=[node],
             keywords=[],
