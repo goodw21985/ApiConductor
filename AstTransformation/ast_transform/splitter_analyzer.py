@@ -7,19 +7,25 @@ from . import scope_analyzer
 # into the various groups.  and to create the DAG.
 class CriticalNodeDepenencyGroup:
     def __init__(self):
-        self.node_dependencies = set([])
-        self.group_dependencies = set([])
-        self.recursive_group_dependencies = set([])
+        self.depends_on_critical_node = set([])
+        self.depends_on_group = set([])
+        self.recursive_depends_on_group = set([])
         self.grouped_critical_nodes = set([])
         self.triggers = set([])
         self.is_aggregation_group = False
         self.name = ""
+        self.stack=[]
 
-    def recursive_set(self, node):
+    def recursive_set(self, node):        
         if self != node:
-            self.recursive_group_dependencies.add(node)
-        for child in node.group_dependencies:
+            self.recursive_depends_on_group.add(node)
+        if node in self.stack:
+            return
+        self.stack.append(node)
+        for child in node.depends_on_group:
             self.recursive_set(child)
+        
+        self.stack.pop()
 
 
 class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
@@ -33,12 +39,13 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
     def create_concurrency_groups(self):
         groups = {}
         agg_groups = {}
+        groups_who_use_node={}
         for critical_node in self.critical_nodes:
             groups[critical_node] = CriticalNodeDepenencyGroup()
         for critical_node in self.critical_nodes:
             nodec = self.node_lookup[critical_node]
             for dependent in nodec.dependency:
-                groups[dependent].node_dependencies.add(critical_node)
+                groups[dependent].depends_on_critical_node.add(critical_node)
             groups[critical_node].grouped_critical_nodes.add(critical_node)
 
         # group multiple critical nodes if they share the same dependency
@@ -56,29 +63,39 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
 
             ingroup = None
             for item2 in grouped_list:
-                if item.node_dependencies == item2.node_dependencies:
+                if item.depends_on_critical_node == item2.depends_on_critical_node:
                     ingroup = item2
                     break
 
             if ingroup:
                 ingroup.grouped_critical_nodes.add(critical_node)
                 self.critical_node_to_group[critical_node] = ingroup
+
             else:
                 item.name = "G" + str(len(grouped_list))
                 grouped_list.append(item)
                 self.critical_node_to_group[critical_node] = item
-                if agg_group:
-                    agg_group.group_dependencies.add(item)
-                    self.aggregated[item]=agg_group
+                
+            if agg_group:
+                item = self.critical_node_to_group[critical_node]
+                agg_group.depends_on_group.add(item)
+                self.aggregated[item]=agg_group
 
         for group in grouped_list:
-            for node_dependency in group.node_dependencies:
+            for node_dependency in group.depends_on_critical_node:
                 group_dependency = self.critical_node_to_group[node_dependency]
                 if group_dependency in self.aggregated:
                     group_dependency2=self.aggregated[group_dependency]
-                    group.group_dependencies.add(group_dependency2)
-                elif group_dependency not in group.group_dependencies:
-                    group.group_dependencies.add(group_dependency)
+                    if node_dependency in self.critical_nodes_if_groups:
+                        # this is where we patch the agg group to who it targets, in
+                        # which we have to trace back the critical node, see what it
+                        # triggers, and lookup its group
+                        nodec = self.node_lookup[node_dependency]
+                        for dependent in nodec.dependency:
+                            target_group = self.critical_node_to_group[dependent]
+                            target_group.depends_on_group.add(group_dependency2)
+                
+                group.depends_on_group.add(group_dependency)
 
         for agg_group in agg_groups.values():
             grouped_list.append(agg_group)
@@ -86,7 +103,7 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
             
         for group in grouped_list:
             group.recursive_set(group)
-            for dependent in group.group_dependencies:
+            for dependent in group.depends_on_group:
                 dependent.triggers.add(group)
           #      if len(dependent.triggers) > 1:
           #          raise ValueError("group can only trigger one group")
@@ -104,10 +121,10 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
 
             trimmed_groups = []
             for g in groups:
-                s = " ".join([item.name for item in g.recursive_group_dependencies])
+                s = " ".join([item.name for item in g.recursive_depends_on_group])
                 isCovered = False
                 for g2 in groups:
-                    if g2 != g and g2 in g.recursive_group_dependencies:
+                    if g2 != g and g2 in g.recursive_depends_on_group:
                         isCovered = True
                 if not isCovered:
                     trimmed_groups.append(g)
@@ -122,8 +139,11 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
             if isinstance(node, ast.Assign):
                 if node.value in self.critical_nodes_if_groups:
                     critical_node_group = self.critical_node_to_group[node.value]
-                    aggregated = self.aggregated[critical_node_group]
-            
+                    if critical_node_group in self.aggregated:
+                        aggregated = self.aggregated[critical_node_group]
+                    else:
+                        pass
+
             if node in self.critical_nodes:
                 nodec.assigned_concurrency_group = self.critical_node_to_group[node]
             elif aggregated:

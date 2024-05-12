@@ -23,7 +23,6 @@ class Mock():
         config = common.Config()
         config.awaitable_functions=self.awaitable_functions
         config.module_blacklist=None
-        config.use_async=False
         config.wrap_in_function_def =False
 
         self.transform = transform.Transform(config).modify_code(target)

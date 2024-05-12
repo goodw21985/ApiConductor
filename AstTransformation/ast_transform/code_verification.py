@@ -146,18 +146,11 @@ class VerificationVisitor(ast.NodeVisitor):
                 if isinstance(node.func, ast.Attribute) and isinstance(
                     node.func.value, ast.Name
                 ):
-                    if self.config.use_async:
-                        if (
-                            node.func.attr == "create_task"
-                            and node.func.value.id == "asyncio"
-                        ):
-                            return True
-                    else:
-                        if (
-                            node.func.attr == rewriter.Rewriter.TASKFUNCTION
-                            and node.func.value.id == rewriter.Rewriter.ORCHESTRATOR
-                        ):
-                            return True
+                    if (
+                        node.func.attr == rewriter.Rewriter.TASKFUNCTION
+                        and node.func.value.id == rewriter.Rewriter.ORCHESTRATOR
+                    ):
+                        return True
 
         return False
 
@@ -166,12 +159,7 @@ class VerificationVisitor(ast.NodeVisitor):
         isAssignChild = False
         isExprChild = False
         if isinstance(self.statement, ast.Assign):
-            if self.config.use_async:
-                if self.IsTaskCall(self.statement.value):
-                    child = self.statement.value.args[0]
-                    isAssignChild = child == node
-            else:
-                isAssignChild = self.statement.value == node
+            isAssignChild = self.statement.value == node
 
         elif isinstance(self.statement, ast.Expr):
             isExprChild = self.statement.value == node
@@ -184,17 +172,6 @@ class VerificationVisitor(ast.NodeVisitor):
 
             name = node.func.attr
             self.async_calls.add(name)
-
-            if self.config.use_async:
-                if (
-                    not isAssignChild
-                    and not isExprChild
-                    and name != rewriter.Rewriter.ORCHESTRATORCLASS
-                    and name != rewriter.Rewriter.TASKCLASS
-                ):
-                    raise ValueError(
-                        "orchestrator functions must be assigned as task or in expr statements"
-                    )
 
             for arg in node.args:
                 if isinstance(arg, ast.Dict) and name == rewriter.Rewriter.FUNCTIONDISPATCH:

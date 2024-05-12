@@ -14,7 +14,6 @@ import io
 config = common.Config()
 config.awaitable_functions = ["search_email", "search_teams", "search_meetings"]
 config.module_blacklist = None
-config.use_async = False
 
 
 
@@ -37,7 +36,7 @@ def walk_groups(analyzer2: dependency_analyzer.DependencyAnalyzer):
     print()
 
     for n in grps:
-        result = " ".join([item.name for item in n.group_dependencies])
+        result = " ".join(sorted([item.name for item in n.depends_on_group]))
         resultn = " ".join(sorted([named[item] for item in n.grouped_critical_nodes]))
         print(n.name + " <= (" + resultn + ") : uses " + result)
 
@@ -225,7 +224,7 @@ C4 => G3 used by () = return search_teams(a)
 
 G0 <= (C0) : uses 
 G1 <= (C1 C2) : uses G0
-G2 <= (C3) : uses G_a
+G2 <= (C3) : uses G1 G_a
 G3 <= (C4) : uses G2
 G_a <= () : uses G1
 

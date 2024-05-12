@@ -1,56 +1,45 @@
-q=3
-a=search_email(q)
-sum=a+a2
-sum+=q
-sum2=sum+3
-b=search_email(sum)>>1  or search_teams(sum2)>>2
-c=b
-return c
+n=search_teams(0)
+if n==3:
+    a=search_email(1)
+else:
+    a=search_email(2)
+
+return search_teams(a)
 
 
-C0 => G0 used by (C1 C2) = search_email(q)
-C1 => G1 used by (C3) = search_email(sum)
-C2 => G1 used by (C3) = search_teams(sum2)
-C3 => G2 used by () = return c
+C0 => G0 used by (C1 C2) = search_teams(0)
+C1 => G1 used by (C3) = search_email(1)
+C2 => G1 used by (C3) = search_email(2)
+C3 => G2 used by (C4) = search_teams(a)
+C4 => G3 used by () = return search_teams(a)
 
 G0 <= (C0) : uses 
-G1 <= (C2 C1) : uses G0
-G2 <= (C3) : uses G1
+G1 <= (C1 C2) : uses G0
+G2 <= (C3) : uses G1 G_a
+G3 <= (C4) : uses G2
+G_a <= () : uses G1
 
-G0 = search_email(q)
-G1 = search_email(sum)
-G1 = search_teams(sum2)
-G2 = return c
-G0: C0 C1 C2 q = 3
-G0: C0 C1 C2 3
-G1: C1 C2 a = search_email(q)
-G0: C1 C2 search_email(q)
-G0: C0 search_email
-G0: C0 q
-G1: C1 C2 sum = a + a2
-G1: C1 C2 a + a2
-G1: C1 C2 a
-G1: C1 C2 a2
-G1: C1 C2 sum += q
-G1: C1 C2 sum
-G1: C1 C2 q
-G1: C2 sum2 = sum + 3
-G1: C2 sum + 3
-G1: C2 sum
-G1: C2 3
-G2: C3 b = search_email(sum) >> 1 or search_teams(sum2) >> 2
-G2: C3 search_email(sum) >> 1 or search_teams(sum2) >> 2
-G2: C3 search_email(sum) >> 1
-G1: C3 search_email(sum)
+G0 = search_teams(0)
+G1 = search_email(1)
+G1 = search_email(2)
+G2 = search_teams(a)
+G3 = return search_teams(a)
+G1: C1 C2 n = search_teams(0)
+G0: C1 C2 search_teams(0)
+G0: C0 search_teams
+G0: C0 0
+G1: C1 C2 (n == 3)
+G1: C1 C2 n
+G1: C1 C2 3
+G_a: C3 a = search_email(1)
+G1: C3 search_email(1)
 G1: C1 search_email
-G1: C1 sum
-G2: C3 1
-G2: C3 search_teams(sum2) >> 2
-G1: C3 search_teams(sum2)
-G1: C2 search_teams
-G1: C2 sum2
-G2: C3 2
-G2: C3 c = b
-G2: C3 b
-G2:  return c
-G2: C3 c
+G1: C1 1
+G_a: C3 a = search_email(2)
+G1: C3 search_email(2)
+G1: C2 search_email
+G1: C2 2
+G3:  return search_teams(a)
+G2: C4 search_teams(a)
+G2: C3 search_teams
+G2: C3 a

@@ -16,7 +16,6 @@ import io
 config = common.Config()
 config.awaitable_functions= ["search_email", "search_teams","search_meetings"]
 config.module_blacklist=None
-config.use_async=False
 config.wrap_in_function_def =True
 
 source_code = """

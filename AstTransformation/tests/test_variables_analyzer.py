@@ -59,7 +59,6 @@ def walk(t, pre=""):
 config = common.Config()
 config.awaitable_functions = ["search_email", "search_teams"]
 config.module_blacklist = None
-config.use_async = False
 
 
 class TestVariablesAnalyzerModule(unittest.TestCase):

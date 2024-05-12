@@ -179,7 +179,6 @@ def is_constant(node):
 
 class Config:
     def __init__(self):
-        self.use_async = False
         self.wrap_in_function_def = False
         self.awaitable_functions = []
         self.module_blacklist = None

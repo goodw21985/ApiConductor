@@ -90,11 +90,6 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         call = ast.Call(func=function_call, args=new_args, keywords=new_keywords)
 
-        if self.config.use_async:
-            call = self.MakeTask(call)
-
-        # => _C0 = asyncio.create_task(orchestrator.search_email(q, 0))
-
         #group = self.critical_node_to_group[node]
         groupname = group.name
         assign = ast.Assign(targets=[self.MakeStoreName(call_id)], value=call)
@@ -102,14 +97,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         self.add_nonlocal(groupname, call_id)
         self.allnonlocals.add(call_id)
 
-        for triggered in group.triggers:
-        
-        #_concurrent_G0: [],
-        # _concurrent_G1: ['_C0'],
-        #  _concurrent_G2: [],   <== ['G_a']
-        #   _concurrent_G3: ['_C3'], 
-        #   _concurrent_G_a: ['_C1', '_C2']  <== [[...]]
-    
+        for triggered in group.triggers:        
             delegate = self.FUNCTIONPREFIX + triggered.name
             if triggered.is_aggregation_group:
                 self.dag_aggregate_groups.add(delegate)
@@ -262,7 +250,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             function_def = self.MakeFunctionDef(
                 self.FUNCTIONPREFIX + group_name,
                 self.concurrency_group_code[group_name],
-                isAsync=self.config.use_async,
+                isAsync=False,
             )
 
             new_body_statements.append(function_def)
@@ -364,10 +352,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         return ast.Name(id=name, ctx=ast.Store())
 
     def DoWait(self, node):
-        if self.config.use_async:
-            return ast.Await(value=node)
-        else:
-            return ast.Attribute(value=node, attr=self.RESULTNAME, ctx=ast.Load())
+        return ast.Attribute(value=node, attr=self.RESULTNAME, ctx=ast.Load())
     
     def MakeFunctionDef(self, name, body, isAsync=False, inargs=None):
         args = inargs or ast.arguments(
@@ -412,26 +397,15 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         ))
         
     def MakeTask(self, node):
-        if self.config.use_async:
-            return ast.Call(
-                func=ast.Attribute(
-                    value=ast.Name(id="asyncio", ctx=ast.Load()),
-                    attr="create_task",
-                    ctx=ast.Load(),
-                ),
-                args=[node],
-                keywords=[],
-            )
-        else:
-            return ast.Call(
-                func=ast.Attribute(
-                    value=ast.Name(self.ORCHESTRATOR, ctx=ast.Load()),
-                    attr=self.TASKFUNCTION,
-                    ctx=ast.Load(),
-                ),
-                args=[node],
-                keywords=[],
-            )
+        return ast.Call(
+            func=ast.Attribute(
+                value=ast.Name(self.ORCHESTRATOR, ctx=ast.Load()),
+                attr=self.TASKFUNCTION,
+                ctx=ast.Load(),
+            ),
+            args=[node],
+            keywords=[],
+        )
 
     def MakeRun(self, node):
         return ast.Call(
