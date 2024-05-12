@@ -90,7 +90,6 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         call = ast.Call(func=function_call, args=new_args, keywords=new_keywords)
 
-        #group = self.critical_node_to_group[node]
         groupname = group.name
         assign = ast.Assign(targets=[self.MakeStoreName(call_id)], value=call)
         self.concurrency_start_code[groupname].append((node,assign))
@@ -175,7 +174,26 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         self.concurrency_group_nonlocals[groupname].add(id)
         self.allnonlocals.add(id)
 
-    def MakeDictionary(self, dict):
+    # sort for consistent source code for testing to be simpler
+    def SortDictionary(self, dict):
+        keys = []
+        for key in dict.keys():
+            keys.append(key)
+        keys=sorted(keys)
+        result = {}
+        for key in keys:
+            val = dict[key]
+            if len(val)==0:
+                result[key]=val
+            elif isinstance(val[0], list):
+                result[key]=[sorted(val[0])]
+            else:
+                result[key]=sorted(val)
+                
+        return result
+    
+    def MakeDictionary(self, dict0):
+        dict = self.SortDictionary(dict0)
         key_nodes = []
         value_nodes = []
         for key in dict.keys():
@@ -215,7 +233,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             if group.is_aggregation_group:
                 self.concurrency_group_code[group.name].append(self.aggregation_completion(group.name))
 
-        self.PrescanStartCode()        
+        self.UncompletedAsyncIfs()        
                 
         for groupname in self.concurrency_group_code.keys():
             if groupname in self.concurrency_start_code:
@@ -357,51 +375,78 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     def DoWait(self, node):
         return ast.Attribute(value=node, attr=self.RESULTNAME, ctx=ast.Load())
 
-    def PrescanStartCode(self):
-        return
-        ifgroups = {}
-        for groupname in self.concurrency_group_code.keys():
-            if groupname in self.concurrency_start_code:
-                start_list = self.concurrency_start_code[groupname]
-                for (node, assignStatement) in start_list:
-                    nodec = self.node_lookup[node]
-                    if nodec.if_stack:
-                        ifframe =nodec.if_stack[0].if_frame
-                        if ifframe not in ifgroups:
-                            ifgroups[ifframe]=[]
-                        ifgroups[ifframe].append((groupname, node, assignStatement))    
-                        
-        self.pre_scanned_if={}
-        for ifgroup in ifgroups:
-            self.pre_scanned_if[ifgroup] = self.PreScanGroup(ifgroup, ifgroups[ifgroup])
-
-    def PreScanGroup(self, if_group, start_list):
-        if_stacks={}
-        if_stack_usage={}
-        if_stack_ids=[]
-        for (groupname, node, assignStatement) in start_list:
+    def UncompletedAsyncIfs(self):
+        reverse_if_groups={}
+        completion_id={}
+        for node in self.critical_nodes_if_groups.keys():
+            if_grp = self.critical_nodes_if_groups[node]
+            if if_grp not in reverse_if_groups:
+                reverse_if_groups[if_grp]=([],set([]))
             nodec = self.node_lookup[node]
-            if_stack = nodec.if_stack
-            if_stack_id_parts = [str(obj.block_index) for obj in if_stack]
-            if_stack_id_parts_padded = [num.zfill(3) for num in if_stack_id_parts]
-            if_stack_id = ".".join(if_stack_id_parts_padded)
-            if if_stack_id not in if_stack_usage:
-                if_stack_ids.append(if_stack_id)
-                if_stack_usage[if_stack_id]=if_stack
-                if_stacks[if_stack_id]=[]
-            if_stack_usage[if_stack_id].append((node,assignStatement))
-        
-        sorted_if_stack_ids=sorted(if_stack_ids)
-        return (sorted_if_stack_ids, if_stack_usage, if_stacks)
+            reverse_if_groups[if_grp][0].append(nodec.if_stack)
+            reverse_if_groups[if_grp][1].add(nodec.assigned_concurrency_group)
+            id = "_" + self.critical_node_names[node]
+            completion_id[if_grp]=id
+        for if_grp in reverse_if_groups.keys():
+            concurrency_group = self.GetLatestConcurrencyGroup(reverse_if_groups[if_grp][1])
+            cond = None
+            if self.IfGroupsIncomplete(reverse_if_groups[if_grp][0]):
+                for if_stack in reverse_if_groups[if_grp][0]:
+                    cond = Rewriter.Or(cond,self.GetIfCond(if_stack))     
+                
+                cond = Rewriter.Not(cond)
+                # => orchestrator._complete("_1")
+                trigger = self.aggregation_completion(completion_id[if_grp])
+                statement = ast.If(test = cond, body =[trigger], orelse=[])
+                self.concurrency_group_code[concurrency_group.name].append(statement)
+            
 
-    # a list cannot be a key to a dictionary, and this creates an id
-    # that is also sortable                    
-    def IfStackId(self, if_stack):
-        if_stack_id_parts = [str(obj.block_index) for obj in if_stack]
-        if_stack_id_parts_padded = [num.zfill(3) for num in if_stack_id_parts]
-        if_stack_id = ".".join(if_stack_id_parts_padded)
-        return if_stack_id
-        
+    def IfGroupsIncomplete(self, if_stacks):
+        frames_report_stack = [if_stacks[0][0].if_frame,{}]
+        base_type=None
+        for if_stack in if_stacks:
+            if base_type!= None and if_stack[0].if_frame != base_type:
+                return True;
+            base_type = if_stack[0].if_frame
+            current = frames_report_stack
+            for level in if_stack:
+                current[0]=level.if_frame
+                if level.block_index not in current:
+                     current[1][level.block_index]=[None,{}]
+                current =current[1][level.block_index]
+                
+        return not self.IsIfGroupsComplete(frames_report_stack)
+    
+    def IsIfGroupsComplete(self, report):
+        frame = report[0]
+        if (frame==None):
+            return True
+        children = report[1]
+        complete_body_count = len(frame.conditions)+1
+        for index in range(complete_body_count):
+            if index not in children:
+                return False
+            report2= children[index]
+            if not self.IsIfGroupsComplete(report2):
+                return False
+        return True
+    
+    def GetLatestConcurrencyGroup(self, options):
+        if len(options)==1:
+            return options[0]
+        for item in options:
+            if self.GetLatestConcurrencyGroupFollow(item, item, options):
+                return item
+        raise ValueError
+
+    def GetLatestConcurrencyGroupFollow(self, orig, cur, options):
+        if orig != cur and cur in options:
+            return False
+        for next in cur.triggers:
+            if not self.GetLatestConcurrencyGroupFollow(orig,next, options):
+                return False
+        return True
+
     def BuildStartCode(self, start_list):
         statements = []
         # statements need to be grouped under if trees, and there can be more than one
@@ -435,28 +480,42 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         if a==None:
             return b
         return ast.BoolOp(op=ast.And(), values=[a, b])
+    
+    @staticmethod
+    def Or(a, b):
+        if b==None:
+            return a
+        
+        if a==None:
+            return b
+        return ast.BoolOp(op=ast.Or(), values=[a, b])
+
+    def GetIfCond(self, if_stack):
+        condition_node = None
+        for stack_frame in if_stack:
+            block_index = stack_frame.block_index
+            if_frame = stack_frame.if_frame
+            expr = None
+            for index in range(block_index+1):
+                if index < len(if_frame.conditions):
+                    condition = if_frame.conditions[index]
+                    expr = Rewriter.And(expr, condition, index<block_index)
+                        
+            condition_node = Rewriter.And(condition_node, expr)
+        return condition_node
+        
 
     def BuildStartIfTree(self, if_group, start_list):
         statements = []
         for (node, assignStatement) in start_list:
             nodec = self.node_lookup[node]
-            condition_node = None
             if_stack = nodec.if_stack
-            for stack_frame in if_stack:
-                block_index = stack_frame.block_index
-                if_frame = stack_frame.if_frame
-                expr = None
-                for index in range(block_index+1):
-                    if index < len(if_frame.conditions):
-                        condition = if_frame.conditions[index]
-                        expr = Rewriter.And(expr, condition, index<block_index)
-                        
-                condition_node = Rewriter.And(condition_node, expr)
-                if_stmt = ast.If(
-                    test=condition_node, 
-                    body=[assignStatement],  
-                    orelse=[])
-                statements.append(if_stmt)
+            condition_node = self.GetIfCond(if_stack)
+            if_stmt = ast.If(
+                test=condition_node, 
+                body=[assignStatement],  
+                orelse=[])
+            statements.append(if_stmt)
                  
         return statements
         

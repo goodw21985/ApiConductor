@@ -96,6 +96,8 @@ if n==3:
 else:
     if m==3:
         a=search_email(2)
+    elif m>12:
+        pass
     else:
         a=search_email(3)
 return search_teams(a)
@@ -109,6 +111,8 @@ if n==3:
 else:
     if m==3:
         a=search_email(2)
+    elif m>12:
+        pass
     else:
         a=search_email(3)
 return search_teams(a)
@@ -158,6 +162,9 @@ G_a: C5 a = search_email(2)
 G2: C5 search_email(2)
 G2: C3 search_email
 G2: C3 2
+G2: C4 (m > 12)
+G2: C4 m
+G2: C4 12
 G_a: C5 a = search_email(3)
 G2: C5 search_email(3)
 G2: C4 search_email
@@ -188,9 +195,11 @@ def _program(orchestrator):
     def _concurrent_G2():
         nonlocal _C1, _C3, _C4, m
         m = _C1.Result
+        if not ((n == 3 or not n == 3 and m == 3) or (not n == 3 and not m == 3) and not m > 12):
+            orchestrator._complete('_C4')
         if not n == 3 and m == 3:
             _C3 = orchestrator.search_email(2, _id='_C3')
-        if not n == 3 and not m == 3:
+        if (not n == 3 and not m == 3) and not m > 12:
             _C4 = orchestrator.search_email(3, _id='_C4')
 
     def _concurrent_G3():
@@ -207,19 +216,17 @@ def _program(orchestrator):
             a = _C2.Result
         elif m == 3:
             a = _C3.Result
+        elif m > 12:
+            pass
         else:
             a = _C4.Result
         orchestrator._complete('G_a')
-    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0'], _concurrent_G2: ['_C0', '_C1', '_C2'], _concurrent_G3: ['_C1', 'G_a', '_C2', '_C3', '_C4'], _concurrent_G4: ['_C5'], _concurrent_G_a: [['_C1', '_C2', '_C3', '_C4']]})
+    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0'], _concurrent_G2: ['_C0', '_C1', '_C2'], _concurrent_G3: ['G_a', '_C1', '_C2', '_C3', '_C4'], _concurrent_G4: ['_C5'], _concurrent_G_a: [['_C1', '_C2', '_C3', '_C4']]})
     return _return_value
 
 
 orchestrator.Return(_program(orchestrator))"""
 
-
-#ERRORS:
-# 1. if statements needed in g1.      
-# 4. else's are needed to detect incompletions.
 
         result = self.get(source_code)
         print(result)
