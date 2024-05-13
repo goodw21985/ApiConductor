@@ -118,6 +118,8 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
                 dependent.triggers.add(group)
           #      if len(dependent.triggers) > 1:
           #          raise ValueError("group can only trigger one group")
+          
+          
 
         self.concurrency_groups = grouped_list
 

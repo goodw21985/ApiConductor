@@ -1,49 +1,46 @@
 from ast_transform import test_orchestrator
 
 
-class MockOrchestrator(orchestrator.Orchestrator):
+class MockOrchestrator(test_orchestrator.Orchestrator):
 
-    def search_email(self, a=0, b=0, _id=None):
-        return self.start_task(_id, str(a) + '1')
-
-    def search_meetings(self, a=0, b=0, _id=None):
-        return self.start_task(_id, str(a) + '2')
-
-    def search_teams(self, a=0, b=0, _id=None):
-        return self.start_task(_id, str(b) + '3')
+    def search_email(self, a=0, _id=None):
+        return self.start_task(_id, a)
 
 
 orchestrator = MockOrchestrator()
 
 
-def _program():
-    _1 = _2 = _3 = _4 = _5 = _return_value = a = b = c = q = sum = sum2 = None
+def _program(orchestrator):
+    _1 = _2 = _C0 = _C1 = _C2 = _return_value = a = x = y = None
 
     def _concurrent_G0():
-        nonlocal _1, q
-        pass
-        q = 3
-        _1 = orchestrator.search_email(q, 0, _id='_1')
+        nonlocal _C0, x
+        x = 3
+        _C0 = orchestrator.search_email(x, _id='_C0')
 
     def _concurrent_G1():
-        nonlocal _1, _2, _3, _4, _5, a, q, sum, sum2
-        a = _1.Result
-        sum = str(a) + 'j'
-        sum += str(q)
-        sum2 = sum + 'q'
-        _3 = sum + 'a'
-        _5 = sum2 + 'b'
-        _2 = orchestrator.search_meetings(_3, _id='_2')
-        _4 = orchestrator.search_teams(b=_5, _id='_4')
+        nonlocal _1, _2, _C0, _C1, _C2, a
+        a = _C0.Result
+        _1 = a + 5
+        _2 = a + 10
+        if a < 3:
+            _C1 = orchestrator.search_email(_1, _id='_C1')
+        if not a < 3:
+            _C2 = orchestrator.search_email(_2, _id='_C2')
 
     def _concurrent_G2():
-        nonlocal _2, _4, _return_value, a, b, c, q, sum, sum2
-        b = _2.Result + _4.Result
-        c = b
-        _return_value = c
-    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_1'],
-        _concurrent_G2: ['_2', '_4']})
+        nonlocal _return_value, y
+        _return_value = y
+
+    def _concurrent_G_y():
+        nonlocal _C1, _C2, a, x, y
+        if a < 3:
+            y = _C1.Result
+        else:
+            y = _C2.Result
+        orchestrator._complete('G_y')
+    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0'], _concurrent_G2: ['G_y'], _concurrent_G_y: [['_C1', '_C2']]})
     return _return_value
 
 
-orchestrator.Return(_program())
+orchestrator.Return(_program(orchestrator))

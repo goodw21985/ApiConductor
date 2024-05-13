@@ -42,6 +42,13 @@ class Orchestrator:
     def Return(self, a):
         print(a)
 
+    def _complete(self, task):
+        self.signal_queue.put(task)
+
+    def _wait(self, val, task):
+        self.signal_queue.put(task)
+        return val
+
     # dispatch loop functions for concurrency
     def _add_task(self, task, id):
         with self.lock:
@@ -67,12 +74,26 @@ class Orchestrator:
             for targets in self.dag.values():
                 if task in targets:
                    targets.remove(task)
+                   
+                # check for an array within the array.   The inner array is removed id ANY entryies of the inner_array match
+                # this represents when ANY event in that list is sufficient, rather than ALL events being needed   
+                remove_element=None
+                for element in targets:
+                    if isinstance(element, list):
+                        if task in element:
+                            remove_element=element
+                if remove_element:
+                    targets.remove(remove_element)
+                        
 
     def _dispatch(self, dag):
         self.dag = dag
         while self._dispatch_actions():
             task = self.signal_queue.get()  # Wait for a signal
-            self._update_dag(self._task_id[task])
+            if isinstance(task, str):
+                self._update_dag(task)
+            else:
+                self._update_dag(self._task_id[task])
         
             self.signal_queue.task_done()  # Mark the signal as processed
 

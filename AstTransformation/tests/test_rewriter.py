@@ -67,7 +67,7 @@ def _program(orchestrator):
         n = None
         for a in range(1):
             n = n or 
-            orchestrator._wait(orchestrator.search_teams(a, _id='_C0'))
+            orchestrator._wait(orchestrator.search_teams(a, _id='_C0'), '_C0')
         _return_value = n
     orchestrator._dispatch({_concurrent_G0: []})
     return _return_value
@@ -136,7 +136,7 @@ def _program(orchestrator):
         else:
             a = _C4.Result
         orchestrator._complete('G_a')
-    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0'], _concurrent_G2: ['_C0', '_C1', '_C2'], _concurrent_G3: ['G_a', '_C1', '_C2', '_C3', '_C4'], _concurrent_G4: ['_C5'], _concurrent_G_a: [['_C1', '_C2', '_C3', '_C4']]})
+    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0'], _concurrent_G2: ['_C0'], _concurrent_G3: ['G_a'], _concurrent_G4: ['_C5'], _concurrent_G_a: [['_C1', '_C2', '_C3', '_C4']]})
     return _return_value
 
 

@@ -92,7 +92,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             )
 
             call = ast.Call(func=function_call, args=new_args, keywords=new_keywords)
-            call= self.call_wait(call)
+            call= self.call_wait(call, call_id)
             self.add_nonlocal(group.name, call_id)
             return call
 
@@ -130,9 +130,11 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         self.allnonlocals.add(call_id)
 
         # update dag
+        is_aggregate=False
         for triggered in group.triggers:        
             delegate = self.FUNCTIONPREFIX + triggered.name
             if triggered.is_aggregation_group:
+                is_aggregate=True
                 self.dag_aggregate_groups.add(delegate)
                 for retriggered in triggered.triggers:
                     redelegate = self.FUNCTIONPREFIX +retriggered.name
@@ -146,7 +148,9 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 if call_id not in self.dag[delegate][0]:
                     self.dag[delegate][0].append(call_id)
              
-            else:
+        if not is_aggregate:
+            for triggered in group.triggers:        
+                delegate = self.FUNCTIONPREFIX + triggered.name
                 if call_id not in self.dag[delegate]:
                     self.dag[delegate].append(call_id)
             
@@ -595,7 +599,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             keywords=[],
         ))
         
-    def call_wait(self,call):
+    def call_wait(self,call, name):
         # => orchestrator._wait(orchestrator.search_email(...))
         return ast.Expr(ast.Call(
             func=ast.Attribute(
@@ -603,7 +607,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 attr=self.FUNCTIONWAIT,
                 ctx=ast.Load(),
             ),
-            args=[call],
+            args=[call, self.MakeString(name)],
             keywords=[],
         ))
         
