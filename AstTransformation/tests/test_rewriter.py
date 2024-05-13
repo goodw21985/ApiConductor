@@ -44,7 +44,41 @@ def fn():
         config.wrap_in_function_def =True
 
         self.check(source_code, validate)
-   ###################
+###################
+    def test_non_concurrent(self):
+        source_code = """
+n=None
+for a in range(1):
+    n=n or search_teams(a)
+return n
+"""
+
+
+        expected="""
+import orchestrator
+orchestrator = orchestrator.Orchestrator()
+
+
+def _program(orchestrator):
+    _C0 = _return_value = n = None
+
+    def _concurrent_G0():
+        nonlocal _C0, _return_value, n
+        n = None
+        for a in range(1):
+            n = n or 
+            orchestrator._wait(orchestrator.search_teams(a, _id='_C0'))
+        _return_value = n
+    orchestrator._dispatch({_concurrent_G0: []})
+    return _return_value
+
+
+orchestrator.Return(_program(orchestrator))
+"""
+        config.wrap_in_function_def =False
+
+        self.check(source_code, None, expected)
+###################
     def test_critical_if_split(self):
         source_code = """
 n=search_teams(0)

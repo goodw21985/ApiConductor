@@ -32,6 +32,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     RETURN_VALUE_NAME = "_return_value"
     FUNCTIONDISPATCH = "_dispatch"
     FUNCTIONCOMPLETE = "_complete"
+    FUNCTIONWAIT = "_wait"
     RESULTNAME = "Result"
     TASKFUNCTION = "Task"
     TASKCLASS = "Task"
@@ -66,6 +67,36 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         # => orchestrator.search_email(q, 0, id="_C0")
         call_id = "_" + self.critical_node_names[node]
         new_args = []
+
+        # for critical nodes we found unsafe, we still need to rewrap them, but not 
+        # place construction across concurrency groups, and also immediatly call _wait()
+        if node in self.non_concurrent_critical_nodes:
+            for arg in node.args:
+                new_args.append(self.visit(arg))
+                
+            new_keywords = []
+            for kw in node.keywords:
+                new_kw = ast.keyword(arg=kw.arg, value=self.visit(kw.value))
+                new_keywords.append(new_kw)
+
+            new_keyword = ast.keyword(
+                arg=self.CALLID, 
+                value=self.MakeString(call_id))
+        
+            new_keywords.append(new_keyword)
+            
+            function_call = ast.Attribute(
+                value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
+                attr=node.func.id,
+                ctx=ast.Load(),
+            )
+
+            call = ast.Call(func=function_call, args=new_args, keywords=new_keywords)
+            call= self.call_wait(call)
+            self.add_nonlocal(group.name, call_id)
+            return call
+
+        # place arguments in separate concurrency groups, and add 'id' parameter
         for arg in node.args:
             new_args.append(self.place(arg, self.visit(arg)))
 
@@ -90,12 +121,15 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         call = ast.Call(func=function_call, args=new_args, keywords=new_keywords)
 
+
+        # assign call to call_id variable
         groupname = group.name
         assign = ast.Assign(targets=[self.MakeStoreName(call_id)], value=call)
         self.concurrency_start_code[groupname].append((node,assign))
         self.add_nonlocal(groupname, call_id)
         self.allnonlocals.add(call_id)
 
+        # update dag
         for triggered in group.triggers:        
             delegate = self.FUNCTIONPREFIX + triggered.name
             if triggered.is_aggregation_group:
@@ -433,7 +467,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     
     def GetLatestConcurrencyGroup(self, options):
         if len(options)==1:
-            return options[0]
+            return list(options)[0]
         for item in options:
             if self.GetLatestConcurrencyGroupFollow(item, item, options):
                 return item
@@ -558,6 +592,18 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 ctx=ast.Load(),
             ),
             args=[self.MakeString(name)],
+            keywords=[],
+        ))
+        
+    def call_wait(self,call):
+        # => orchestrator._wait(orchestrator.search_email(...))
+        return ast.Expr(ast.Call(
+            func=ast.Attribute(
+                value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
+                attr=self.FUNCTIONWAIT,
+                ctx=ast.Load(),
+            ),
+            args=[call],
             keywords=[],
         ))
         

@@ -2,6 +2,17 @@ import ast
 from . import scope_analyzer
 from . import common
 
+# This pass is used to create a classical pass 1 symbol table that understands when a symbol can have
+# different context (local variables, parameters, class variables etc.) and creates a creates a SymbolTableEntry
+# for each symbol in each context, keeping track of when a symbol is declared, read and written, etc.
+# this will also keep track of when an object is modified (i.e. a.b.c=3, does modify symbol a) to keep track of immutability
+# that is required for safe concurrency.
+#
+# This pass also assesses the safety of potential concurrency.
+#
+# Since we only are interested in concurrency around critical nodes (i.e. calls made from python code to an extrenal API)
+# we also classify whether a critical node can be safely parallelized.  non_concurrent_critical_nodes must still be treated
+# as asyncronous, however splitting code is not allowed, and we must immediately wait for results, rather than allow parallelism.
 
 class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
     def __init__(self, config, copy):

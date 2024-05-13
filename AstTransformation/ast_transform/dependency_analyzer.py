@@ -4,6 +4,26 @@ from . import scope_analyzer
 from . import common
 
 
+# This pass does multiple partial scans of the code that trace back all critical nodes that need to be completed before
+# a critical node can be executed.  
+#
+# This pass also scans for FindTerminalNodes, as a return statement is not required, and this will detects any statements
+# that produce unused outputs.
+#
+# each critical node NodeCrossReference includes a field dependency, which is a list of critical nodes that depend on this node.
+# this field is populated in this pass.
+#
+#  Note there are several dangerous constructs which must be detected (but not necessarily at this pass),
+#  so that only safe concurrency is created:
+#  1. non-immutable symbols.  
+#        if a symbol is directly or indirecly used in the execution of a critical node, and then later modified, 
+#        concurrency will potentially create incorrect results.  this is why we detect immutability
+#  2. the use of delegates to execute critical nodes.  in this case the critical node itself is not immutable
+#  3. The use of deep object trees.  If a part of an object tree (a.b.c) is directly 
+# 
+# This is accomplished by walking back though the code to look at all inputs to the critical nodes and see where they came
+# from.   If a symbol is encountered, we walk back through all the writers of that symbol.
+# we do not need to walk back through items that have no impact (such as readers).
 
 class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
     def __init__(self, copy):
@@ -208,7 +228,7 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
     def visit_Call2(self, node, len=len):
         # cannot be delegate
         if not isinstance(node.func, ast.Name):
-            self.EndPath()
+            self.EndPath()  # TODO.
             
         # any if conditions in the ifstack become depenedencies any target
         for if_parent in self.current_node_lookup.if_stack:

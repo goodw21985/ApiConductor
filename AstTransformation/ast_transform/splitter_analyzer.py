@@ -5,6 +5,14 @@ from . import scope_analyzer
 
 # This pass is used to build concurrency groups and divide code
 # into the various groups.  and to create the DAG.
+#
+# This pass does not walk the ast, but walk the ast nodes via the nod cross reference
+#
+# A concurrency group is made from one or more critical nodes (if two critical nodes share all dependencies, they are grouped)
+# There is a final concurrency group created from a return statement or otherwise, which does all processing needed after all other
+# critical nodes are completed, and so the return statement is also considered a critical node.  Thus there always will be at least
+# one concurrency group.
+
 class CriticalNodeDepenencyGroup:
     def __init__(self):
         self.depends_on_critical_node = set([])
@@ -36,13 +44,16 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
         self.critical_node_to_group = {}
         self.aggregated = {}
 
+    def concurrent_critical_nodes(self):
+        return (item for item in self.critical_nodes if item not in self.non_concurrent_critical_nodes)
+    
     def create_concurrency_groups(self):
         groups = {}
         agg_groups = {}
         groups_who_use_node={}
-        for critical_node in self.critical_nodes:
+        for critical_node in self.concurrent_critical_nodes():
             groups[critical_node] = CriticalNodeDepenencyGroup()
-        for critical_node in self.critical_nodes:
+        for critical_node in self.concurrent_critical_nodes():
             nodec = self.node_lookup[critical_node]
             for dependent in nodec.dependency:
                 groups[dependent].depends_on_critical_node.add(critical_node)
@@ -50,7 +61,7 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
 
         # group multiple critical nodes if they share the same dependency
         grouped_list = []
-        for critical_node in self.critical_nodes:
+        for critical_node in self.concurrent_critical_nodes():
             item = groups[critical_node]
             agg_group = None
             if critical_node in self.critical_nodes_if_groups:
@@ -115,9 +126,10 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
             nodec = self.node_lookup[node]
             groups = []
             for c in nodec.dependency:
-                g = self.critical_node_to_group[c]
-                if g not in groups:
-                    groups.append(g)
+                if c not in self.non_concurrent_critical_nodes:
+                    g = self.critical_node_to_group[c]
+                    if g not in groups:
+                        groups.append(g)
 
             trimmed_groups = []
             for g in groups:
@@ -144,7 +156,7 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
                     else:
                         pass
 
-            if node in self.critical_nodes:
+            if node in self.concurrent_critical_nodes():
                 nodec.assigned_concurrency_group = self.critical_node_to_group[node]
             elif aggregated:
                 nodec.assigned_concurrency_group = aggregated

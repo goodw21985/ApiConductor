@@ -128,7 +128,7 @@ class SymbolTableEntry:
 #
 # self.node_lookup[node] will return the following class instance as additional information that has been
 # accumulated so far about this node.   TODO:  is ast.node a valid key for a dictionary?
-#
+
 class NodeCrossReference:
     def __init__(self, ancestors, if_stack):
         self.ancestors = ancestors  # the parent node stack of the current node

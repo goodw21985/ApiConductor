@@ -5,7 +5,9 @@ from ast_transform import common
 
 # This is the base class for the llmPython AST walker, and it keeps track of symbol tables and cross references implicitly
 #
+# Each pass over the code that is executed inherits from this class
 class ScopeAnalyzer(ast.NodeTransformer):
+    # any state that should persist between passes is copied during class construction using the copy construct in the __init__ function 
     def __init__(self, copy=None):
         self.symbol_table_stack = None  # no symbol table stack exists before VariablesAnalyzer is being or has been run
         self.symbol_table = None
