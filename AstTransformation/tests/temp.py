@@ -8,14 +8,13 @@ class MockOrchestrator(test_orchestrator.Orchestrator):
 
 
 orchestrator = MockOrchestrator()
-
+_initial_x = _initial_x
 
 def _program(orchestrator):
-    _1 = _2 = _C0 = _C1 = _C2 = _return_value = a = x = y = None
-
+    _1 = _2 = _C0 = _C1 = _C2 = _return_value = a = y = None
+    x=_initial_x
     def _concurrent_G0():
         nonlocal _C0, x
-        x = 3
         _C0 = orchestrator.search_email(x, _id='_C0')
 
     def _concurrent_G1():
@@ -33,7 +32,7 @@ def _program(orchestrator):
         _return_value = y
 
     def _concurrent_G_y():
-        nonlocal _C1, _C2, a, x, y
+        nonlocal _C1, _C2, a, y
         if a < 3:
             y = _C1.Result
         else:

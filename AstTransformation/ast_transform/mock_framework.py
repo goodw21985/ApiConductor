@@ -1,6 +1,7 @@
 import unittest
 import io
 import sys
+import itertools
 
 import ast
 from ast_transform import astor_fork
@@ -10,10 +11,13 @@ from ast_transform import common
 
 class Mock():
 
-    def __init__(self, library, target):
+    def __init__(self, library, target, inputs):
 
         self.awaitable_functions=[]
 
+        self.inputs_code = inputs
+        self.inputs_ast = ast.parse(self.inputs_code).body
+        self.parse_inputs(self.inputs_ast)
         self.library_code=library
         self.library_ast = ast.parse(self.library_code)
         self.target_code=target
@@ -32,16 +36,37 @@ class Mock():
         
         self.run_normal()
         self.run_new_code()
+        for runs in self.capture1.keys():
+            s1= self.capture1[runs]
+            s2= self.capture2[runs]
+            if s1 != s2:
+                raise ValueError
+            
 
+    def parse_inputs(self, inputs):
+        self.variables = {}
+        for statement in inputs:
+            if isinstance(statement, ast.Assign):
+                name = statement.targets[0].id
+                listval = statement.value
+                list2= []
+                if isinstance(listval, ast.List):
+                    for el in listval.elts:
+                        list2.append(el.value)
+                if not list2:
+                    raise ValueError("could not find list of constants")
+                self.variables[name]=list2
+                   
+        
     def run_normal(self):
         self.code1 = self.wrap_code_snippet(self.library_code+"\n"+self.target_code)
-        self.capture1=self.capture(self.code1)
+        self.capture1=self.multi_capture(self.code1)
         print(self.capture1)
         print()
         print()
         
     def run_new_code(self):
-        self.capture2=self.capture(self.new_code)
+        self.capture2=self.multi_capture(self.new_code, mod=True)
         print(self.capture2)
         print()
         print()
@@ -64,6 +89,8 @@ class Mock():
 
         statements.append(self.derived_class)
 
+        
+
         # orchestrator = MockOrchestrator()
         
         call_node = ast.Call(
@@ -83,13 +110,29 @@ class Mock():
         
         for statement in self.transform.body:
             if isinstance(statement,ast.FunctionDef):
+                if statement.name == "_program":
+                    statement = self.fix_program(statement)
                 statements.append(statement)
             if isinstance(statement,ast.Expr):
                 statements.append(statement)
         
         self.module= ast.Module(body=statements, type_ignores=[])
 
-        
+
+    def fix_program(self, node):
+        statements=[]
+        for test_globals in self.variables.keys():
+            assign_node = ast.Assign(
+                targets=[ast.Name(id=test_globals, ctx=ast.Store())],  # List of targets, in this case just one variable
+                value=ast.Name(id="_init_"+test_globals, ctx=ast.Load()) # The right-hand side call expression
+            )
+            
+            statements.append(assign_node)
+            
+        for statement in node.body:
+            statements.append(statement)
+            
+        return ast.FunctionDef(name=node.name, args=node.args, body=statements, returns = node.returns,decorator_list=node.decorator_list)
 
     def wrap_return(self, node):
         if node.value is None:  # Check if the return statement returns something
@@ -186,8 +229,34 @@ class Mock():
 
         return modified_code
     
-    def capture(self, code_string):
-        globals_dict = {}
+    def multi_capture(self, code_string, mod=False):
+        result={}
+
+        if self.variables:
+            keys, lists = zip(*self.variables.items())
+    
+            # Generate all combinations using itertools.product
+            for combination in itertools.product(*lists):
+                # Create a dictionary of the current combination with corresponding keys
+                original_dict = dict(zip(keys, combination))
+            
+                if mod:
+                    combination_dict = {'_init_' + key: value for key, value in original_dict.items()} 
+                else:
+                    combination_dict=original_dict
+
+                id = ",".join(str(val) for val in combination_dict.values())
+        
+                # Call the delegate function with the combination dictionary
+                result[id] = self.capture(code_string, combination_dict)
+        else:
+            result["_"] = self.capture(code_string, {})
+            
+
+        return result
+    
+    def capture(self, code_string, combination_dict):
+        globals_dict = combination_dict.copy()
         locals_dict = {}
 
         output = io.StringIO()

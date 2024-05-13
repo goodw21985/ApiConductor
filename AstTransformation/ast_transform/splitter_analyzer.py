@@ -12,6 +12,11 @@ from . import scope_analyzer
 # There is a final concurrency group created from a return statement or otherwise, which does all processing needed after all other
 # critical nodes are completed, and so the return statement is also considered a critical node.  Thus there always will be at least
 # one concurrency group.
+#
+# aggregate concurrency groups are created when more than one critical nodes write to a common variable and are mutually exclusive
+# due to being in different branches of an if statement.   The aggregate group waits for all the values to be complete (or not) and
+# then triggers further dependencies.
+
 
 class CriticalNodeDepenencyGroup:
     def __init__(self):

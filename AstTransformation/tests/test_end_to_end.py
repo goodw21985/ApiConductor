@@ -5,8 +5,8 @@ import ast
 
 
 class TestMockModule(unittest.TestCase):
-    def check(self, lib, src):
-        m=mock_framework.Mock(lib,src)
+    def check(self, lib, src, variables = ""):
+        m=mock_framework.Mock(lib,src, variables)
         self.assertEqual(m.capture2, m.capture1)
 
 #######################
@@ -17,7 +17,6 @@ def search_email(a=0):
 """
 
         src = """
-x=3
 a=search_email(x)
 if (a<3):
     y=search_email(a+5)
@@ -25,7 +24,12 @@ else:
     y=search_email(a+10)
 return y
 """
-        self.check(lib, src)
+
+        inputs = """
+x=[2, 3]
+"""
+        self.check(lib, src, inputs)
+
 #######################
     def test_dict_follow(self):
         libd = """
