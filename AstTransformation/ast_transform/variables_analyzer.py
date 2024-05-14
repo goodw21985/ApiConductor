@@ -47,6 +47,25 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                     group = common.SymbolTableEntry.ATTR_WRITE
                 else:
                     group = common.SymbolTableEntry.ATTR_AMBIGUOUS
+            else:                
+                last = node
+                for stack_entry in self.node_stack[-2::-1]:
+                    if isinstance(stack_entry, ast.Subscript):
+                        last = stack_entry
+                        pass
+                    elif isinstance(stack_entry, ast.Attribute):
+                        last = stack_entry
+                        pass
+                    elif isinstance(stack_entry, ast.Assign):
+                        if last in stack_entry.targets:
+                            group = common.SymbolTableEntry.ATTR_AMBIGUOUS
+                        pass
+                    elif isinstance(stack_entry, ast.AugAssign):
+                        if last == stack_entry.target:
+                            group = common.SymbolTableEntry.ATTR_AMBIGUOUS
+                        pass
+                    else:
+                        break
 
             self.add_variable_reference(name, group, self.current_node_lookup)
         return node
@@ -70,8 +89,42 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
             )
         return node
 
+    def declare_variable(self, node):
+        if isinstance(node, ast.Tuple):
+            for target in node.elts:
+                self.declare_variable(target)
+        else:
+            self.add_variable_reference(
+                node,
+                common.SymbolTableEntry.ATTR_DECLARED,
+                self.current_node_lookup,
+            )
+        
+    def visit_GeneratorExp2(self, node):
+        for generator in node.generators:
+            self.declare_variable(generator.target)
+        return node
+
+    def visit_DictComp2(self, node):
+        for generator in node.generators:
+            self.declare_variable(generator.target)
+        return node
+
+    def visit_SetComp2(self, node):
+        for generator in node.generators:
+            self.declare_variable(generator.target)
+        return node
+
+    def visit_ListComp2(self, node):
+        for generator in node.generators:
+            self.declare_variable(generator.target)
+        return node
+
     def visit_Attribute2(self, node):
         (name, isClass, isComplex) = self.GetVariableContext()
+        if name==None:
+            return node
+        
         if isinstance(node.ctx, ast.Load):
             group = common.SymbolTableEntry.ATTR_READ
         elif isinstance(node.ctx, ast.Store):

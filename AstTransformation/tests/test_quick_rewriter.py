@@ -13,7 +13,7 @@ from unittest.mock import patch
 import io
 
 config = common.Config()
-config.awaitable_functions = ["search_email", "search_teams", "search_meetings"]
+config.awaitable_functions = ["search_email", "search_teams", "search_meetings", "create_dict", "wrap_string"]
 config.module_blacklist = None
 
 
@@ -89,81 +89,71 @@ class TestQRAnalyzerModule(unittest.TestCase):
 ##########################
     def test_critical_if_split(self):
         source_code = """
-a=search_email(x)
-k=0
-if (a<3):
-    r=k
-    k+=4
-    print(k)
-    b=search_teams(k)
-return b
+inputs = {'a': 10, 'b': 20}
+result_dict = create_dict(inputs['a'], inputs['b'])
+result_dict['c']=30
+return wrap_string(result_dict)
 """
 
         expected = """
-a=search_email(x)
-k=0
-if (a<3):
-    r=k
-    k+=4
-    print(k)
-    b=search_teams(k)
-return b
+inputs = {'a': 10, 'b': 20}
+result_dict = create_dict(inputs['a'], inputs['b'])
+result_dict['c']=30
+return wrap_string(result_dict)
 
 
-C0 => G0 used by (C1 C2) = search_email(x)
-C2 => G1 used by () = return b
+C0 => G0 used by (C1) = create_dict(inputs['a'], inputs['b'])
+C2 => G1 used by () = return wrap_string(result_dict)
 
 G0 <= (C0) : uses 
 G1 <= (C2) : uses G0
 
-G0 = search_email(x)
-G1 = return b
-G1: C1 C2 a = search_email(x)
-G0: C1 C2 search_email(x)
-G0: C0 search_email
-G0: C0 x
-G1: C1 k = 0
-G1: C1 0
-G1: C1 k += 4
-G1: C1 k
-G1: C1 4
-G1: C2 b = search_teams(k)
-G1: C2 search_teams(k)
-G1: C1 search_teams
-G1: C1 k
-G1:  return b
-G1: C2 b
-G1: C1 C2 (a < 3)
-G1: C1 C2 a
-G1: C1 C2 3
+G0 = create_dict(inputs['a'], inputs['b'])
+G1 = return wrap_string(result_dict)
+G0: C0 inputs = {'a': 10, 'b': 20}
+G0: C0 {'a': 10, 'b': 20}
+G0: C0 \"\"\"a\"\"\"
+G0: C0 \"\"\"b\"\"\"
+G0: C0 10
+G0: C0 20
+G1: C1 result_dict = create_dict(inputs['a'], inputs['b'])
+G0: C1 create_dict(inputs['a'], inputs['b'])
+G0: C0 create_dict
+G0: C0 inputs['a']
+G0: C0 inputs
+G0: C0 \"\"\"a\"\"\"
+G0: C0 inputs['b']
+G0: C0 inputs
+G0: C0 \"\"\"b\"\"\"
+G1:  return wrap_string(result_dict)
+G1: C2 wrap_string(result_dict)
+G1: C1 wrap_string
+G1: C1 result_dict
 
 import orchestrator
 orchestrator = orchestrator.Orchestrator()
 
 
 def _program(orchestrator):
-    _C0 = _C1 = _return_value = a = b = k = r = None
+    _1 = _2 = _C0 = _C1 = _return_value = inputs = result_dict = None
 
     def _concurrent_G0():
-        nonlocal _C0, x
-        _C0 = orchestrator.search_email(x, _id='_C0')
+        nonlocal _1, _2, _C0, inputs
+        inputs = {'a': 10, 'b': 20}
+        _1 = inputs['a']
+        _2 = inputs['b']
+        _C0 = orchestrator.create_dict(_1, _2, _id='_C0')
 
     def _concurrent_G1():
-        nonlocal _C0, _C1, _return_value, a, b, k, r
-        a = _C0.Result
-        k = 0
-        if a < 3:
-            r = k
-            k += 4
-            print(k)
-            b = orchestrator._wait(orchestrator.search_teams(k, _id='_C1'), '_C1')
-        _return_value = b
+        nonlocal _C0, _C1, _return_value, inputs, result_dict
+        result_dict = _C0.Result
+        result_dict['c'] = 30
+        _return_value = orchestrator._wait(orchestrator.wrap_string(result_dict, _id='_C1'), '_C1')
     orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0']})
     return _return_value
 
 
 orchestrator.Return(_program(orchestrator))"""
-
 
         result = self.get(source_code)
         print(result)

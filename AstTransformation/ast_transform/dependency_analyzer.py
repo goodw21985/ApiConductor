@@ -235,13 +235,25 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
         return node
 
     def visit_Call2(self, node, len=len):
-        # cannot be delegate
-        if not isinstance(node.func, ast.Name):
-            self.EndPath()  # TODO.
-
         self.follow_if_stack(self.current_node_lookup.if_stack)            
                 
         return node
+
+    def visit_GeneratorExp2(self, node):
+        return node
+
+    def visit_DictComp2(self, node):
+        return node
+
+    def visit_SetComp2(self, node):
+        return node
+
+    def visit_ListComp2(self, node):
+        return node
+
+    def visit_Lambda2(self, node):
+        return node
+
 
     def visit_Name2(self, node):
         s = self.current_node_lookup
@@ -332,28 +344,8 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
         self.generic_visit(node)  # Await(node)
         return node
 
-    def visit_Lambda(self, node):
-        self.generic_visit(node)  # Lambda(node)
-        return node
-
     def visit_Ellipsis(self, node):
         self.generic_visit(node)  # Ellipsis(node)
-        return node
-
-    def visit_ListComp(self, node):
-        self.generic_visit(node)
-        return node
-
-    def visit_GeneratorExp(self, node):
-        self.generic_visit(node)  # GeneratorExp(node)
-        return node
-
-    def visit_SetComp(self, node):
-        self.generic_visit(node)  # SetComp(node)
-        return node
-
-    def visit_DictComp(self, node):
-        self.generic_visit(node)  # DictComp(node)
         return node
 
     def visit_IfExp(self, node):
@@ -419,7 +411,7 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
         self.visit(self.tracking)
         if self.mutates:
             self.non_concurrent_critical_nodes.add(critical_node)
-
+            
     def fix_if_groups(self):
         # make sure that if group does not contain any expelled critical nodes
         reverse = {}
@@ -464,6 +456,10 @@ def Scan(tree, parent=None):
     analyzer.FindTerminalNodes()
     for critical_node in analyzer.critical_nodes:
         analyzer.MarkDependencies(critical_node)
+    for critical_node in analyzer.critical_nodes:
+        analyzer.MarkDependencies(critical_node)
     analyzer.fix_if_groups()
+    if len(analyzer.non_concurrent_critical_nodes)==len(analyzer.critical_nodes):
+       analyzer.non_concurrent_critical_nodes.remove(analyzer.critical_nodes[-1])
 
     return analyzer

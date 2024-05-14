@@ -56,6 +56,14 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
     def concurrent_critical_nodes(self):
         return (item for item in self.critical_nodes if item not in self.non_concurrent_critical_nodes)
     
+    def traverse_dependency(self, critical_node):
+        nodec = self.node_lookup[critical_node]
+        for dependent in nodec.dependency:
+            if dependent in self.non_concurrent_critical_nodes:
+                yield from self.traverse_dependency(dependent)
+            else:
+                yield dependent
+        
     def create_concurrency_groups(self):
         groups = {}
         agg_groups = {}
@@ -63,10 +71,8 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
         for critical_node in self.concurrent_critical_nodes():
             groups[critical_node] = CriticalNodeDepenencyGroup()
         for critical_node in self.concurrent_critical_nodes():
-            nodec = self.node_lookup[critical_node]
-            for dependent in nodec.dependency:
-                if dependent in self.concurrent_critical_nodes():
-                    groups[dependent].depends_on_critical_node.add(critical_node)
+            for dependent in self.traverse_dependency(critical_node):
+                groups[dependent].depends_on_critical_node.add(critical_node)
             groups[critical_node].grouped_critical_nodes.add(critical_node)
 
         # group multiple critical nodes if they share the same dependency

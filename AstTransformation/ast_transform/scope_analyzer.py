@@ -16,7 +16,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.if_lookup = {}
         self.current_node_stack = []
         self.current_if_stack = []
-        self.is_lambda_count = 0
+        self.scope_broadened = 0
         self.class_symbols_stack = []
         self.def_class_param_stack = []
         self.node_lookup = {}
@@ -33,6 +33,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.concurrency_group_code = None
         self.concurrency_groups = None
         self.aggregated=None
+        self.null_symbol_table_entry = common.SymbolTableEntry()
         self.module_blacklist = [
             "threading",
             "io",
@@ -73,7 +74,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.if_lookup = copy.if_lookup
             self.current_node_stack = []
             self.current_if_stack = []
-            self.is_lambda_count = 0
+            self.scope_broadened = 0
             self.class_symbols_stack = []
             self.def_class_param_stack = []
             self.critical_nodes = copy.critical_nodes
@@ -275,6 +276,94 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.class_symbols_stack.pop()
         return node
 
+    def lookups_symbols(self, node):
+        if isinstance(node, ast.Tuple):
+            for target in node.elts:
+                self.lookups_symbols(target)
+        else:
+            self.node_lookup[node].symbol = self.get_variable_reference(
+                node, self.current_node_stack
+            )
+
+    def visit_GeneratorExp(self, node):
+        self.push_symbol_table_stack("generatorExp")
+        if self.have_symbol_table:
+            for generator in node.generators:
+                self.lookups_symbols(generator.target)      
+        ret = self.visit_GeneratorExp2(node)
+
+        self.scope_broadened += 1
+
+        # need to visit the generators first, so it does not seem non-immutable
+        for g in node.generators:
+            self.visit(g)
+        self.visit(node.elt)
+        self.scope_broadened -= 1
+        self.pop_symbol_table_stack()
+        return ret
+
+    def visit_GeneratorExp2(self, node):
+        return node
+        
+    def visit_DictComp(self, node):
+        self.push_symbol_table_stack("dictComp")
+        if self.have_symbol_table:
+            for generator in node.generators:
+                self.lookups_symbols(generator.target)      
+        ret = self.visit_DictComp2(node)
+
+        self.scope_broadened += 1
+        # need to visit the generators first, so it does not seem non-immutable
+        for g in node.generators:
+            self.visit(g)
+        self.visit(node.key)
+        self.visit(node.value)
+        self.scope_broadened -= 1
+        self.pop_symbol_table_stack()
+        return ret
+
+    def visit_DictComp2(self, node):
+        return node
+        
+    def visit_SetComp(self, node):
+        self.push_symbol_table_stack("setComp")
+        if self.have_symbol_table:
+            for generator in node.generators:
+                self.lookups_symbols(generator.target)      
+        ret = self.visit_SetComp2(node)
+
+        self.scope_broadened += 1
+        # need to visit the generators first, so it does not seem non-immutable
+        for g in node.generators:
+            self.visit(g)
+        self.visit(node.elt)
+        self.scope_broadened -= 1
+        self.pop_symbol_table_stack()
+        return ret
+
+    def visit_SetComp(self, node):
+        return node
+        
+    def visit_ListComp(self, node):
+        self.push_symbol_table_stack("listComp")
+        if self.have_symbol_table:
+            for generator in node.generators:
+                self.lookups_symbols(generator.target)      
+        ret = self.visit_ListComp2(node)
+
+        self.scope_broadened += 1
+        # need to visit the generators first, so it does not seem non-immutable
+        for g in node.generators:
+            self.visit(g)
+        self.visit(node.elt)
+        self.scope_broadened -= 1
+        self.pop_symbol_table_stack()
+        return ret
+
+    def visit_ListComp(self, node):
+        return node
+        
+
     def visit_Lambda(self, node):
         self.push_symbol_table_stack("lambda")
         if self.have_symbol_table:
@@ -284,9 +373,9 @@ class ScopeAnalyzer(ast.NodeTransformer):
                 )
         ret = self.visit_Lambda2(node)
 
-        self.is_lambda_count += 1
+        self.scope_broadened += 1
         self.generic_visit(node)
-        self.is_lambda_count -= 1
+        self.scope_broadened -= 1
         self.pop_symbol_table_stack()
         return ret
 
@@ -321,7 +410,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
                 break
 
             # only lambdas can implicitly get scope broadened
-            if self.is_lambda_count == 0:
+            if self.scope_broadened == 0:
                 break
         if latest_object_with_key is not None:
             return latest_object_with_key
@@ -374,6 +463,8 @@ class ScopeAnalyzer(ast.NodeTransformer):
             return None
 
     def get_variable_reference(self, key, value):
+        if key==None:
+            return self.null_symbol_table_entry
         dictionary = self.find_frame(key)
         item = dictionary[key]
         if item.redirect:
@@ -390,6 +481,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         item = dictionary[key]
         return item
 
+    # returns a tuple with the (variable name, is a class variable (i.e. self.x), has other attributes (i.e.x.y.x))
     def GetVariableContext(self):
         list = []
         for item in self.current_node_stack[::-1]:
@@ -398,23 +490,27 @@ class ScopeAnalyzer(ast.NodeTransformer):
                 last = item
             else:
                 break
-        list.insert(0, last.value.id)
-        if len(list) == 1:
-            return (list[-1], False, False)
-        if not self.def_class_param_stack:
-            selfVal = None
-        else:
-            selfVal = self.def_class_param_stack[-1]
-        if selfVal == list[0]:
-            if len(list) == 2:
-                return (list[-1], True, False)
-            else:
-                return (list[0], True, True)
-        else:
+        if isinstance(last.value, ast.Name):
+            list.insert(0, last.value.id)
             if len(list) == 1:
                 return (list[-1], False, False)
+            if not self.def_class_param_stack:
+                selfVal = None
             else:
-                return (list[0], False, True)
+                selfVal = self.def_class_param_stack[-1]
+            if selfVal == list[0]:
+                if len(list) == 2:
+                    return (list[-1], True, False)
+                else:
+                    return (list[0], True, True)
+            else:
+                if len(list) == 1:
+                    return (list[-1], False, False)
+                else:
+                    return (list[0], False, True)
+        else:
+            # ','.join(f'x' for ...)
+            return (None, False, True)
 
     def Log(self, node, msg=None):
         if not self.config.log:
