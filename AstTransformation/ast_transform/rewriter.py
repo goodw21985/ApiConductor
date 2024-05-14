@@ -224,6 +224,10 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                         
                         
         return result
+
+    def visit_AugAssign(self, node):
+        result = self.generic_visit(node)
+        return result
     
     def visit_Name2(self, node):
         symbol = self.current_node_lookup.symbol
@@ -629,7 +633,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         
     def call_wait(self,call, name):
         # => orchestrator._wait(orchestrator.search_email(...))
-        return ast.Expr(ast.Call(
+        return ast.Call(
             func=ast.Attribute(
                 value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
                 attr=self.FUNCTIONWAIT,
@@ -637,7 +641,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             ),
             args=[call, self.MakeString(name)],
             keywords=[],
-        ))
+        )
         
     def MakeTask(self, node):
         return ast.Call(

@@ -12,6 +12,7 @@ class Orchestrator:
         self._task_id = {}
         self.lock = threading.Lock()
         self.signal_queue = queue.Queue()
+        self._private_queue={}
         self.dag = None
 
     def Task(self, node):
@@ -20,12 +21,34 @@ class Orchestrator:
     def _completion(self, task, val):
         time.sleep(.01)  # Wait for 10
         task.Result = val
-        self.signal_queue.put(task)
-        
+        id = self._task_id[task]
+        if id in self._private_queue:
+            self._private_queue[id].put(task)
+        else:
+            self.signal_queue.put(task)
+
+
+    def _is_awaitable(self, id):
+        with self.lock:
+            seen=False
+            for item in self.dag.values():
+                for item2 in item:
+                    if item2==id:
+                        return True
+                    if isinstance(item2, list):
+                        for item3 in item:
+                            if item3==id:
+                                return True
+
+        return False
+
     def start_task(self, id, val):
         # Create a thread and start it
         task = Task()
         self._add_task(task, id)
+        if not self._is_awaitable(id):
+            self._private_queue[id]=queue.Queue()
+            
         thread = threading.Thread(target=self._completion, args=(task,val))
         thread.start()    # client accessable functions 
         return task
@@ -45,9 +68,11 @@ class Orchestrator:
     def _complete(self, task):
         self.signal_queue.put(task)
 
-    def _wait(self, val, task):
-        self.signal_queue.put(task)
-        return val
+    def _wait(self, val, id):
+        private_queue=self._private_queue[id]
+        task = private_queue.get()  # Wait for a signal
+        private_queue.task_done()  # Mark the signal as processed
+        return val.Result
 
     # dispatch loop functions for concurrency
     def _add_task(self, task, id):
