@@ -53,6 +53,23 @@ x=[2, 3, 8]
         self.check(lib, src, inputs)
 
 #######################
+    def test_critical_loop(self):
+        lib = """
+def search_email(a=0):
+    return a
+"""
+
+        src = """
+val=0
+for a in range(3):
+    val+=search_email(a)
+return val;
+"""
+
+        inputs = """
+"""
+        self.check(lib, src, inputs)
+#######################
     def test_incomplete_if2(self):
         lib = """
 def search_email(a=0):
@@ -77,12 +94,12 @@ return str(y) + "," +str(z)
         inputs = """
 x=[0, 2,5, 8]
 """        
+#######################
     def test_incomplete_if(self):
         lib = """
 def search_email(a=0):
     return a
 """
-#######################
 
         src = """
 y=None

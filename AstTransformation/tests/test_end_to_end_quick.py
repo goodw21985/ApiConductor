@@ -17,16 +17,19 @@ def search_email(a=0):
 """
 
         src = """
-val=0
-for a in range(3):
-    val+=search_email(a)
-return val;
+y=None
+a=search_email(x)
+if (a<3):
+    y=search_email(a+5)
+elif a>7:
+    y=search_email(a+10)
+return y
 """
 
         inputs = """
+x=[2,5, 8]
 """
         self.check(lib, src, inputs)
-#######################
-
+#######
 if __name__ == "__main__":
     unittest.main()

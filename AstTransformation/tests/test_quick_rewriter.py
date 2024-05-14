@@ -156,8 +156,7 @@ def _program(orchestrator):
             r = k
             k += 4
             print(k)
-            b = 
-            orchestrator._wait(orchestrator.search_teams(k, _id='_C1'), '_C1')
+            b = orchestrator._wait(orchestrator.search_teams(k, _id='_C1'), '_C1')
         _return_value = b
     orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0']})
     return _return_value

@@ -66,8 +66,7 @@ def _program(orchestrator):
         nonlocal _C0, _return_value, n
         n = None
         for a in range(1):
-            n = n or 
-            orchestrator._wait(orchestrator.search_teams(a, _id='_C0'), '_C0')
+            n = n or orchestrator._wait(orchestrator.search_teams(a, _id='_C0'), '_C0')
         _return_value = n
     orchestrator._dispatch({_concurrent_G0: []})
     return _return_value

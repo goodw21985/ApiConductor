@@ -36,7 +36,7 @@ class Orchestrator:
                     if item2==id:
                         return True
                     if isinstance(item2, list):
-                        for item3 in item:
+                        for item3 in item2:
                             if item3==id:
                                 return True
 
