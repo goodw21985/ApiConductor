@@ -1,4 +1,5 @@
 import ast
+from re import S
 
 from ast_transform import astor_fork
 from ast_transform import common
@@ -47,8 +48,10 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
         self.pass_name = "splitter"
         super().__init__(copy)
         self.concurrency_groups = []
+        self.last_group= None
         self.critical_node_to_group = {}
         self.aggregated = {}
+        self.agg_group_id_to_group={}
 
     def concurrent_critical_nodes(self):
         return (item for item in self.critical_nodes if item not in self.non_concurrent_critical_nodes)
@@ -62,7 +65,8 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
         for critical_node in self.concurrent_critical_nodes():
             nodec = self.node_lookup[critical_node]
             for dependent in nodec.dependency:
-                groups[dependent].depends_on_critical_node.add(critical_node)
+                if dependent in self.concurrent_critical_nodes():
+                    groups[dependent].depends_on_critical_node.add(critical_node)
             groups[critical_node].grouped_critical_nodes.add(critical_node)
 
         # group multiple critical nodes if they share the same dependency
@@ -71,9 +75,12 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
             item = groups[critical_node]
             agg_group = None
             if critical_node in self.critical_nodes_if_groups:
-                agg_group_name = "G_"+ self.critical_nodes_if_groups[critical_node]
+                id = self.critical_nodes_if_groups[critical_node]
+                agg_group_name = "G_"+ id
                 if agg_group_name not in agg_groups:
-                    agg_groups[agg_group_name]=CriticalNodeDepenencyGroup()
+                    g=CriticalNodeDepenencyGroup()
+                    agg_groups[agg_group_name]=g
+                    self.agg_group_id_to_group[id]=g
                 agg_group = agg_groups[agg_group_name]
                 agg_group.name = agg_group_name
                 agg_group.is_aggregation_group = True
@@ -96,13 +103,15 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
             if agg_group:
                 item = self.critical_node_to_group[critical_node]
                 agg_group.depends_on_group.add(item)
-                self.aggregated[item]=agg_group
+                self.aggregated[critical_node]=agg_group
 
         for group in grouped_list:
             for node_dependency in group.depends_on_critical_node:
                 group_dependency = self.critical_node_to_group[node_dependency]
-                if group_dependency in self.aggregated:
-                    group_dependency2=self.aggregated[group_dependency]
+                if node_dependency in self.aggregated:
+                    #bug the following needs to come from the node to 
+                    #aggregated, not group to group_aggregated
+                    group_dependency2=self.aggregated[node_dependency]
                     if node_dependency in self.critical_nodes_if_groups:
                         # this is where we patch the agg group to who it targets, in
                         # which we have to trace back the critical node, see what it
@@ -114,6 +123,7 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
                 
                 group.depends_on_group.add(group_dependency)
 
+        self.last_group=grouped_list[-1]
         for agg_group in agg_groups.values():
             grouped_list.append(agg_group)
 
@@ -122,15 +132,18 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
             group.recursive_set(group)
             for dependent in group.depends_on_group:
                 dependent.triggers.add(group)
-          #      if len(dependent.triggers) > 1:
-          #          raise ValueError("group can only trigger one group")
-          
           
 
         self.concurrency_groups = grouped_list
 
     def assign_nodes_tocreate_concurrency_groups(self):
         for node in self.node_lookup.keys():
+            if isinstance(node, ast.Module):
+                continue
+            if isinstance(node, ast.Load):
+                continue
+            if isinstance(node, ast.Store):
+                continue
             nodec = self.node_lookup[node]
             groups = []
             for c in nodec.dependency:
@@ -150,8 +163,8 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
                     trimmed_groups.append(g)
 
             if not trimmed_groups:
-                trimmed_groups.append(self.concurrency_groups[-1])
-
+                trimmed_groups.append(self.last_group)
+                                        
             if len(trimmed_groups) > 1:
                 raise ValueError
             
@@ -162,32 +175,14 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
                     if critical_node_group in self.aggregated:
                         aggregated = self.aggregated[critical_node_group]
 
-                ## check for a variable being assigned to a constant, which can happen
-                ## to a grouped if node, so make sure that these are assigned to the earliest group 
-                ## unless any of the targets of the assignment are not immutable.        
-                #assigned_to_immutable_symbols = True
-                #if len(nodec.ancestors)>2:
-                #    assigned_to_immutable_symbols=False
-                #
-                #for child in node.targets:
-                #    if isinstance(child,ast.Name):
-                #        child_nodec =  self.node_lookup[child]
-                #        child_symbol = child_nodec.symbol
-                #        if not child_symbol.is_immutable():
-                #            assigned_to_immutable_symbols= False
-                #    else:
-                #        assigned_to_immutable_symbols = False
-                #
-                #if common.is_constant(node.value) and assigned_to_immutable_symbols:
-                #    trimmed_groups[0] = self.concurrency_groups[0]
-                    
             if node in self.concurrent_critical_nodes():
                 nodec.assigned_concurrency_group = self.critical_node_to_group[node]
             elif aggregated:
                 nodec.assigned_concurrency_group = aggregated
             else:
                 nodec.assigned_concurrency_group = trimmed_groups[0]
-            
+            if nodec.assigned_concurrency_group.name=="G_z":
+                pass
 
 
 def Scan(tree, parent=None):

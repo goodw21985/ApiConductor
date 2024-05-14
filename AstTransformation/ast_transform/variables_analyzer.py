@@ -201,6 +201,8 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                     self.non_concurrent_critical_nodes.add(critical)
                 else:
                     self.critical_nodes_if_groups[critical]=symbol_name
+                    
+                
             
 
 def Scan(tree, config, parent=None):

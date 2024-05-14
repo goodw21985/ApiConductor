@@ -129,6 +129,16 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         self.add_nonlocal(groupname, call_id)
         self.allnonlocals.add(call_id)
 
+        if node in self.aggregated:
+            agg_group = self.aggregated[node]
+            delegate = self.FUNCTIONPREFIX + agg_group.name
+            # embed the list within a list that only contains the outer list
+            # as a flag to the dispatcher that this is OR list not and AND list        
+            if len(self.dag[delegate])==0:
+                self.dag[delegate].append([])
+            if call_id not in self.dag[delegate][0]:
+                self.dag[delegate][0].append(call_id)
+
         # update dag
         is_aggregate=False
         for triggered in group.triggers:        
@@ -141,12 +151,6 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                     if triggered.name not in self.dag[redelegate]:
                         self.dag[redelegate].append(triggered.name)
             
-                # embed the list within a list that only contains the outer list
-                # as a flag to the dispatcher that this is OR list not and AND list        
-                if len(self.dag[delegate])==0:
-                    self.dag[delegate].append([])
-                if call_id not in self.dag[delegate][0]:
-                    self.dag[delegate][0].append(call_id)
              
         if not is_aggregate:
             for triggered in group.triggers:        
@@ -324,7 +328,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             statement = ast.Assign(targets=targets, value=value)
             new_body_statements.append(statement)
 
-        # => async def _concurrent_G0()
+        # => def _concurrent_G0()
         for group_name in self.concurrency_group_code.keys():
             function_def = self.MakeFunctionDef(
                 self.FUNCTIONPREFIX + group_name,
@@ -414,9 +418,13 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             return ast.Module(body=module_statements)
 
     def add_concurrency_group_code(self, group_name, statement):
+        if (group_name=="G_z"):
+            pass
         self.concurrency_group_code[group_name].append(statement)
 
     def prependNonlocals(self, list, symbols):
+        if not symbols:
+            return list
         new_list = []
         new_list.append(ast.Nonlocal(names=sorted(symbols)))
         for statement in list:

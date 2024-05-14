@@ -120,23 +120,22 @@ def _program(orchestrator):
             _C4 = orchestrator.search_email(3, _id='_C4')
 
     def _concurrent_G3():
-        nonlocal _C5, a
+        nonlocal _C2, _C3, _C4, _C5, a
         _C5 = orchestrator.search_teams(a, _id='_C5')
 
     def _concurrent_G4():
-        nonlocal _C5, _return_value
-        _return_value = _C5.Result
-
-    def _concurrent_G_a():
-        nonlocal _C2, _C3, _C4, a, m, n
+        nonlocal _C5, _return_value, a, m, n
         if n == 3:
             a = _C2.Result
         elif m == 3:
             a = _C3.Result
         else:
             a = _C4.Result
+        _return_value = _C5.Result
+
+    def _concurrent_G_a():
         orchestrator._complete('G_a')
-    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0'], _concurrent_G2: ['_C0'], _concurrent_G3: ['G_a'], _concurrent_G4: ['_C5'], _concurrent_G_a: [['_C1', '_C2', '_C3', '_C4']]})
+    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0'], _concurrent_G2: ['_C0'], _concurrent_G3: ['G_a', '_C0'], _concurrent_G4: ['_C5'], _concurrent_G_a: [['_C2', '_C3', '_C4']]})
     return _return_value
 
 

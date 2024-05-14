@@ -89,109 +89,77 @@ class TestQRAnalyzerModule(unittest.TestCase):
 ##########################
     def test_critical_if_split(self):
         source_code = """
-y=None
 a=search_email(x)
-print(a)
+k=0
 if (a<3):
-    print("A lt 3")
-    y=search_email(a+5)
-elif a>7:
-    print("A gt 7")
-    y=search_email(a+10)
-return y"""
+    r=k
+    k+=4
+    print(k)
+    b=search_teams(k)
+return b
+"""
 
         expected = """
-y=None
 a=search_email(x)
-print(a)
+k=0
 if (a<3):
-    print("A lt 3")
-    y=search_email(a+5)
-elif a>7:
-    print("A gt 7")
-    y=search_email(a+10)
-return y
+    r=k
+    k+=4
+    print(k)
+    b=search_teams(k)
+return b
+
 
 C0 => G0 used by (C1 C2) = search_email(x)
-C1 => G1 used by (C3) = search_email(a + 5)
-C2 => G1 used by (C3) = search_email(a + 10)
-C3 => G2 used by () = return y
+C2 => G1 used by () = return b
 
 G0 <= (C0) : uses 
-G1 <= (C1 C2) : uses G0
-G2 <= (C3) : uses G1 G_y
-G_y <= () : uses G1
+G1 <= (C2) : uses G0
 
 G0 = search_email(x)
-G1 = search_email(a + 5)
-G1 = search_email(a + 10)
-G2 = return y
-G2: C3 y = None
-G2: C3 None
+G1 = return b
 G1: C1 C2 a = search_email(x)
 G0: C1 C2 search_email(x)
 G0: C0 search_email
 G0: C0 x
+G1: C1 k = 0
+G1: C1 0
+G1: C1 k += 4
+G1: C1 k
+G1: C1 4
+G1: C2 b = search_teams(k)
+G1: C2 search_teams(k)
+G1: C1 search_teams
+G1: C1 k
+G1:  return b
+G1: C2 b
 G1: C1 C2 (a < 3)
 G1: C1 C2 a
 G1: C1 C2 3
-G_y: C3 y = search_email(a + 5)
-G1: C3 search_email(a + 5)
-G1: C1 search_email
-G1: C1 a + 5
-G1: C1 a
-G1: C1 5
-G_y: C3 y = search_email(a + 10)
-G1: C3 search_email(a + 10)
-G1: C2 search_email
-G1: C2 a + 10
-G1: C2 a
-G1: C2 10
-G2:  return y
-G2: C3 y
-G1: C2 (a > 7)
-G1: C2 a
-G1: C2 7
 
 import orchestrator
 orchestrator = orchestrator.Orchestrator()
 
 
 def _program(orchestrator):
-    _1 = _2 = _C0 = _C1 = _C2 = _return_value = a = y = None
+    _C0 = _C1 = _return_value = a = b = k = r = None
 
     def _concurrent_G0():
         nonlocal _C0, x
         _C0 = orchestrator.search_email(x, _id='_C0')
 
     def _concurrent_G1():
-        nonlocal _1, _2, _C0, _C1, _C2, a
+        nonlocal _C0, _C1, _return_value, a, b, k, r
         a = _C0.Result
-        _1 = a + 5
-        _2 = a + 10
-        if not (a < 3 or not a < 3 and a > 7):
-            orchestrator._complete('_C2')
+        k = 0
         if a < 3:
-            _C1 = orchestrator.search_email(_1, _id='_C1')
-        if not a < 3 and a > 7:
-            _C2 = orchestrator.search_email(_2, _id='_C2')
-
-    def _concurrent_G2():
-        nonlocal _return_value, y
-        _ = None
-        _return_value = y
-
-    def _concurrent_G_y():
-        nonlocal _C1, _C2, a, y
-        print(a)
-        if a < 3:
-            print('A lt 3')
-            y = _C1.Result
-        elif a > 7:
-            print('A gt 7')
-            y = _C2.Result
-        orchestrator._complete('G_y')
-    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0'], _concurrent_G2: ['G_y'], _concurrent_G_y: [['_C1', '_C2']]})
+            r = k
+            k += 4
+            print(k)
+            b = 
+            orchestrator._wait(orchestrator.search_teams(k, _id='_C1'), '_C1')
+        _return_value = b
+    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0']})
     return _return_value
 
 

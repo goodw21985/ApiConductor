@@ -57,7 +57,10 @@ class SymbolTableEntry:
         for (access_type, node_cross_reference) in self.usage:
             if access_type == self.ATTR_READ:
                 sawread=True
-            elif access_type == self.ATTR_WRITE or access_type == self.ATTR_READ_WRITE:
+            elif access_type == self.ATTR_READ_WRITE:
+                if sawread:
+                    return False
+            elif access_type == self.ATTR_WRITE:
                 if sawread:
                     return False
             elif access_type == self.ATTR_DECLARED:

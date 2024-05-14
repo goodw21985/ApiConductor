@@ -32,6 +32,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.critical_dependencies = None
         self.concurrency_group_code = None
         self.concurrency_groups = None
+        self.aggregated=None
         self.module_blacklist = [
             "threading",
             "io",
@@ -76,6 +77,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
             self.class_symbols_stack = []
             self.def_class_param_stack = []
             self.critical_nodes = copy.critical_nodes
+            self.aggregated=copy.aggregated
             self.non_concurrent_critical_nodes = copy.non_concurrent_critical_nodes
             self.critical_nodes_if_groups = copy.critical_nodes_if_groups            
             self.critical_node_names = copy.critical_node_names

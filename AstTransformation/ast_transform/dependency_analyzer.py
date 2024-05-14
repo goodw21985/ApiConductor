@@ -39,13 +39,22 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
 
     def visit_Assign(self, node):
         self.visit(node.value)
+        self.follow_if_stack(self.current_node_lookup.if_stack)
         for t in node.targets:
             self.skip_visit(t)
         return node
 
     def visit_AugAssign(self, node):
+        self.follow_if_stack(self.current_node_lookup.if_stack)
         self.generic_visit(node)  # AugAssign(node)
         return node
+
+    def follow_if_stack(self, if_stack):
+        # any if conditions in the ifstack become depenedencies any target
+        for if_parent in if_stack:
+            conditions = if_parent.if_frame.conditions[:if_parent.block_index+1]
+            for condition in conditions:
+                self.visit(condition)
 
     def visit_AnnAssign(self, node):
         self.generic_visit(node)  # AnnAssign(node)
@@ -229,17 +238,15 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
         # cannot be delegate
         if not isinstance(node.func, ast.Name):
             self.EndPath()  # TODO.
-            
-        # any if conditions in the ifstack become depenedencies any target
-        for if_parent in self.current_node_lookup.if_stack:
-            conditions = if_parent.if_frame.conditions[:if_parent.block_index+1]
-            for condition in conditions:
-                self.visit(condition)
+
+        self.follow_if_stack(self.current_node_lookup.if_stack)            
                 
         return node
 
     def visit_Name2(self, node):
         s = self.current_node_lookup
+        if not s.symbol.is_immutable():
+            self.mutates=True;
         for writer in s.symbol.usage_by_types([common.SymbolTableEntry.ATTR_WRITE,common.SymbolTableEntry.ATTR_READ_WRITE]):
             if len(writer.ancestors) > 1:
                 self.visit(writer.ancestors[-2])
@@ -407,8 +414,31 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
                 self.critical_node_names[v]=self.new_critical_node_name()
 
     def MarkDependencies(self, critical_node):
+        self.mutates=False
         self.tracking = critical_node
         self.visit(self.tracking)
+        if self.mutates:
+            self.non_concurrent_critical_nodes.add(critical_node)
+
+    def fix_if_groups(self):
+        # make sure that if group does not contain any expelled critical nodes
+        reverse = {}
+        for critical in self.critical_nodes_if_groups:
+            symbol_name = self.critical_nodes_if_groups[critical]
+            if not symbol_name in reverse:
+                reverse[symbol_name]=[]
+            reverse[symbol_name].append(critical)
+                
+        for if_group in reverse.keys():
+            ok=True
+            for critical in reverse[if_group]:
+                if critical in self.non_concurrent_critical_nodes:
+                    ok=False
+                    
+            if not ok:
+                for critical in reverse[if_group]:
+                    self.non_concurrent_critical_nodes.add(critical)
+                    del self.critical_nodes_if_groups[critical]
 
     def CreateDependencyGraphForCriticalNodes():
         pass
@@ -434,5 +464,6 @@ def Scan(tree, parent=None):
     analyzer.FindTerminalNodes()
     for critical_node in analyzer.critical_nodes:
         analyzer.MarkDependencies(critical_node)
+    analyzer.fix_if_groups()
 
     return analyzer

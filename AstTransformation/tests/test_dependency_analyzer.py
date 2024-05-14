@@ -60,7 +60,7 @@ return a
 """
 
         expected = """
-C0 => C1 C2 search_meetings()
+C0 => C1 C2 C3 search_meetings()
 C1 => C3 search_email()
 C2 => C3 search_teams()
 C3 =>  return a"""

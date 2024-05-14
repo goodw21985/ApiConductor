@@ -113,7 +113,7 @@ else:
 return search_teams(a)
 
 
-C0 => G0 used by (C1 C2) = search_teams(0)
+C0 => G0 used by (C1 C2 C3) = search_teams(0)
 C1 => G1 used by (C3) = search_email(1)
 C2 => G1 used by (C3) = search_email(2)
 C3 => G2 used by (C4) = search_teams(a)
@@ -121,7 +121,7 @@ C4 => G3 used by () = return search_teams(a)
 
 G0 <= (C0) : uses 
 G1 <= (C1 C2) : uses G0
-G2 <= (C3) : uses G1 G_a
+G2 <= (C3) : uses G0 G1 G_a
 G3 <= (C4) : uses G2
 G_a <= () : uses G1
 
@@ -130,18 +130,18 @@ G1 = search_email(1)
 G1 = search_email(2)
 G2 = search_teams(a)
 G3 = return search_teams(a)
-G1: C1 C2 n = search_teams(0)
-G0: C1 C2 search_teams(0)
+G1: C1 C2 C3 n = search_teams(0)
+G0: C1 C2 C3 search_teams(0)
 G0: C0 search_teams
 G0: C0 0
-G1: C1 C2 (n == 3)
-G1: C1 C2 n
-G1: C1 C2 3
-G_a: C3 a = search_email(1)
+G1: C1 C2 C3 (n == 3)
+G1: C1 C2 C3 n
+G1: C1 C2 C3 3
+G2: C3 a = search_email(1)
 G1: C3 search_email(1)
 G1: C1 search_email
 G1: C1 1
-G_a: C3 a = search_email(2)
+G2: C3 a = search_email(2)
 G1: C3 search_email(2)
 G1: C2 search_email
 G1: C2 2

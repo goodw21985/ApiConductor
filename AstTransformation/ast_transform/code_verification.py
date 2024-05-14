@@ -187,6 +187,9 @@ class VerificationVisitor(ast.NodeVisitor):
                     elif name == rewriter.Rewriter.TASKFUNCTION:
                         # Task() is allowed
                         pass
+                    elif name == rewriter.Rewriter.FUNCTIONWAIT:
+                        # _wait() is allowed
+                        pass
                     else:
                         raise ValueError(
                             "orchestrator function arguments must be ast.Name"
