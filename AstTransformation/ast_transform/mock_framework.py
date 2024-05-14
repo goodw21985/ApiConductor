@@ -36,12 +36,6 @@ class Mock():
         
         self.run_normal()
         self.run_new_code()
-        for runs in self.capture1.keys():
-            s1= self.capture1[runs]
-            s2= self.capture2[runs]
-            if s1 != s2:
-                raise ValueError
-            
 
     def parse_inputs(self, inputs):
         self.variables = {}
@@ -128,6 +122,14 @@ class Mock():
             )
             
             statements.append(assign_node)
+            
+            # test_call = ast.Call(func=ast.Name(id='print', ctx=ast.Load),
+            #                            args=[ast.Name(id ="_init_"+test_globals, ctx=ast.Load())
+            #                                  ], keywords=[])
+            # 
+            # test_statement = ast.Expr(test_call)
+            # statements.append(test_statement)
+            
             
         for statement in node.body:
             statements.append(statement)
@@ -245,7 +247,7 @@ class Mock():
                 else:
                     combination_dict=original_dict
 
-                id = ",".join(str(val) for val in combination_dict.values())
+                id = ",".join(f"{key}={value}" for key, value in sorted(original_dict.items()))
         
                 # Call the delegate function with the combination dictionary
                 result[id] = self.capture(code_string, combination_dict)

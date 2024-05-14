@@ -31,6 +31,49 @@ x=[2, 3]
         self.check(lib, src, inputs)
 
 #######################
+    def test_incomplete_if(self):
+        lib = """
+def search_email(a=0):
+    return a
+"""
+
+        src = """
+y=None
+a=search_email(x)
+if (a<3):
+    y=search_email(a+5)
+elif a>7:
+    y=search_email(a+10)
+return y
+"""
+
+        inputs = """
+x=[2, 3, 8]
+"""
+        self.check(lib, src, inputs)
+
+#######################
+    def test_incomplete_if(self):
+        lib = """
+def search_email(a=0):
+    return a
+"""
+
+        src = """
+y=None
+a=search_email(x)
+if (a<3):
+    y=search_email(a+5)
+elif a>7:
+    y=search_email(a+10)
+return y
+"""
+
+        inputs = """
+x=[2,5, 8]
+"""
+        self.check(lib, src, inputs)
+#######################
     def test_dict_follow(self):
         libd = """
 def search_email(a='first', b='second'):

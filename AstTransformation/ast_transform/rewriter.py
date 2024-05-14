@@ -201,6 +201,26 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         return self.MakeLoadName(unique_name)
 
+    def visit_Assign(self, node):
+        result = self.generic_visit(node)
+
+        # get rid of assignments of None to if group variable assignements
+        if common.is_constant(node.value) and node.value.value==None:
+            targets=[]
+            targets_changed = False
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id in self.critical_nodes_if_groups.values():
+                    targets.append(ast.Name(id='_', ctx = target.ctx))
+                    targets_changed = True
+                else:
+                    targets.append(target)
+
+            if targets_changed:
+                return ast.Assign(targets = targets, value=node.value)
+                        
+                        
+        return result
+    
     def visit_Name2(self, node):
         symbol = self.current_node_lookup.symbol
         if symbol.usage_by_types([common.SymbolTableEntry.ATTR_WRITE]):

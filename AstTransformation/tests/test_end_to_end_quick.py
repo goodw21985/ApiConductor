@@ -10,26 +10,26 @@ class TestMockModuleQuick(unittest.TestCase):
         self.assertEqual(m.capture2, m.capture1)
 
 #######################
-    def test_simple_if(self):
+    def test_incomplete_if(self):
         lib = """
 def search_email(a=0):
     return a
 """
 
         src = """
+y=None
 a=search_email(x)
 if (a<3):
     y=search_email(a+5)
-else:
+elif a>7:
     y=search_email(a+10)
 return y
 """
 
         inputs = """
-x=[2, 3]
+x=[2,5, 8]
 """
         self.check(lib, src, inputs)
-
 #######################
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import ast
 
 from ast_transform import astor_fork
+from ast_transform import common
 from . import scope_analyzer
 
 # This pass is used to build concurrency groups and divide code
@@ -160,9 +161,26 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
                     critical_node_group = self.critical_node_to_group[node.value]
                     if critical_node_group in self.aggregated:
                         aggregated = self.aggregated[critical_node_group]
-                    else:
-                        pass
 
+                ## check for a variable being assigned to a constant, which can happen
+                ## to a grouped if node, so make sure that these are assigned to the earliest group 
+                ## unless any of the targets of the assignment are not immutable.        
+                #assigned_to_immutable_symbols = True
+                #if len(nodec.ancestors)>2:
+                #    assigned_to_immutable_symbols=False
+                #
+                #for child in node.targets:
+                #    if isinstance(child,ast.Name):
+                #        child_nodec =  self.node_lookup[child]
+                #        child_symbol = child_nodec.symbol
+                #        if not child_symbol.is_immutable():
+                #            assigned_to_immutable_symbols= False
+                #    else:
+                #        assigned_to_immutable_symbols = False
+                #
+                #if common.is_constant(node.value) and assigned_to_immutable_symbols:
+                #    trimmed_groups[0] = self.concurrency_groups[0]
+                    
             if node in self.concurrent_critical_nodes():
                 nodec.assigned_concurrency_group = self.critical_node_to_group[node]
             elif aggregated:
