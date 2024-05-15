@@ -24,7 +24,7 @@ def pretty_source(source):
     return ''.join(split_lines(source))
 
 
-def split_lines(source, maxline=79):
+def split_lines(source, maxline=799):
     """Split inputs according to lines.
        If a line is short enough, just yield it.
        Otherwise, fix it.
@@ -59,7 +59,7 @@ def count(group, slen=str.__len__):
     return sum([slen(x) for x in group])
 
 
-def wrap_line(line, maxline=79, result=[], count=count):
+def wrap_line(line, maxline=7999, result=[], count=count):
     """ We have a line that is too long,
         so we're going to try to wrap it.
     """

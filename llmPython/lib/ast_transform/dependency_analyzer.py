@@ -1,7 +1,29 @@
 import ast
 
 from . import scope_analyzer
+from . import common
 
+
+# This pass does multiple partial scans of the code that trace back all critical nodes that need to be completed before
+# a critical node can be executed.  
+#
+# This pass also scans for FindTerminalNodes, as a return statement is not required, and this will detects any statements
+# that produce unused outputs.
+#
+# each critical node NodeCrossReference includes a field dependency, which is a list of critical nodes that depend on this node.
+# this field is populated in this pass.
+#
+#  Note there are several dangerous constructs which must be detected (but not necessarily at this pass),
+#  so that only safe concurrency is created:
+#  1. non-immutable symbols.  
+#        if a symbol is directly or indirecly used in the execution of a critical node, and then later modified, 
+#        concurrency will potentially create incorrect results.  this is why we detect immutability
+#  2. the use of delegates to execute critical nodes.  in this case the critical node itself is not immutable
+#  3. The use of deep object trees.  If a part of an object tree (a.b.c) is directly 
+# 
+# This is accomplished by walking back though the code to look at all inputs to the critical nodes and see where they came
+# from.   If a symbol is encountered, we walk back through all the writers of that symbol.
+# we do not need to walk back through items that have no impact (such as readers).
 
 class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
     def __init__(self, copy):
@@ -17,13 +39,22 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
 
     def visit_Assign(self, node):
         self.visit(node.value)
+        self.follow_if_stack(self.current_node_lookup.if_stack)
         for t in node.targets:
             self.skip_visit(t)
         return node
 
     def visit_AugAssign(self, node):
+        self.follow_if_stack(self.current_node_lookup.if_stack)
         self.generic_visit(node)  # AugAssign(node)
         return node
+
+    def follow_if_stack(self, if_stack):
+        # any if conditions in the ifstack become depenedencies any target
+        for if_parent in if_stack:
+            conditions = if_parent.if_frame.conditions[:if_parent.block_index+1]
+            for condition in conditions:
+                self.visit(condition)
 
     def visit_AnnAssign(self, node):
         self.generic_visit(node)  # AnnAssign(node)
@@ -204,21 +235,18 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
         return node
 
     def visit_Call2(self, node, len=len):
-        # cannot be delegate
-        if not isinstance(node.func, ast.Name):
-            self.EndPath()
+        self.follow_if_stack(self.current_node_lookup.if_stack)            
+                
         return node
 
+
     def visit_Name2(self, node):
-        if node.id == "sum2":
-            node = node
         s = self.current_node_lookup
-        for writer in s.symbol.write:
-            if len(writer) > 1:
-                self.visit(writer[-2])
-        for writer in s.symbol.readwrite:
-            if len(writer) > 1:
-                self.visit(writer[-2])
+        if not s.symbol.is_immutable():
+            self.mutates=True;
+        for writer in s.symbol.usage_by_types([common.SymbolTableEntry.ATTR_WRITE,common.SymbolTableEntry.ATTR_READ_WRITE]):
+            if len(writer.ancestors) > 1:
+                self.visit(writer.ancestors[-2])
         return node
 
     def visit_Constant(self, node):
@@ -301,28 +329,8 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
         self.generic_visit(node)  # Await(node)
         return node
 
-    def visit_Lambda(self, node):
-        self.generic_visit(node)  # Lambda(node)
-        return node
-
     def visit_Ellipsis(self, node):
         self.generic_visit(node)  # Ellipsis(node)
-        return node
-
-    def visit_ListComp(self, node):
-        self.generic_visit(node)
-        return node
-
-    def visit_GeneratorExp(self, node):
-        self.generic_visit(node)  # GeneratorExp(node)
-        return node
-
-    def visit_SetComp(self, node):
-        self.generic_visit(node)  # SetComp(node)
-        return node
-
-    def visit_DictComp(self, node):
-        self.generic_visit(node)  # DictComp(node)
         return node
 
     def visit_IfExp(self, node):
@@ -371,27 +379,61 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
             self.terminal_nodes.append(self.global_return_statement)
         else:
             for symbol in self.symbol_table.keys():
-                record = self.symbol_table[symbol]
-                if (
-                    not record.child
-                    and record.write
-                    and not record.read
-                    and len(record.write) == 1
-                ):
-                    self.terminal_nodes.append(record.write[0][-1])
+                terminal_node = self.symbol_table[symbol].GetTerminalNode()
+                if terminal_node:
+                    self.terminal_nodes.append(terminal_node.ancestors[-1])
         if len(self.terminal_nodes) == 0:
             for node in self.critical_nodes:
                 self.terminal_nodes.append(node)
         for v in self.terminal_nodes:
             if v not in self.critical_nodes:
                 self.critical_nodes.append(v)
+                self.critical_node_names[v]=self.new_critical_node_name()
 
     def MarkDependencies(self, critical_node):
+        self.mutates=False
         self.tracking = critical_node
         self.visit(self.tracking)
+        if self.mutates:
+            self.non_concurrent_critical_nodes.add(critical_node)
+            
+    def fix_if_groups(self):
+        # make sure that if group does not contain any expelled critical nodes
+        reverse = {}
+        for critical in self.critical_nodes_if_groups:
+            symbol_name = self.critical_nodes_if_groups[critical]
+            if not symbol_name in reverse:
+                reverse[symbol_name]=[]
+            reverse[symbol_name].append(critical)
+                
+        for if_group in reverse.keys():
+            ok=True
+            for critical in reverse[if_group]:
+                if critical in self.non_concurrent_critical_nodes:
+                    ok=False
+                    
+            if not ok:
+                for critical in reverse[if_group]:
+                    self.non_concurrent_critical_nodes.add(critical)
+                    del self.critical_nodes_if_groups[critical]
 
     def CreateDependencyGraphForCriticalNodes():
         pass
+    
+    def track_dependency(self, node):
+        self.current_node_lookup.dependency_visited = True
+
+        if self.tracking in self.current_node_lookup.dependency:
+            # stop when we hit the same node
+            return True
+        elif node != self.tracking:
+            self.current_node_lookup.dependency.append(self.tracking)
+
+        if node != self.tracking and node in self.critical_nodes:
+            # stop when we see another critical node
+            return True
+
+        return False
 
 
 def Scan(tree, parent=None):
@@ -399,5 +441,10 @@ def Scan(tree, parent=None):
     analyzer.FindTerminalNodes()
     for critical_node in analyzer.critical_nodes:
         analyzer.MarkDependencies(critical_node)
+    for critical_node in analyzer.critical_nodes:
+        analyzer.MarkDependencies(critical_node)
+    analyzer.fix_if_groups()
+    if len(analyzer.non_concurrent_critical_nodes)==len(analyzer.critical_nodes):
+       analyzer.non_concurrent_critical_nodes.remove(analyzer.critical_nodes[-1])
 
     return analyzer

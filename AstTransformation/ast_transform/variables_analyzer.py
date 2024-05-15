@@ -74,10 +74,18 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
     def visit_Call2(self, node):
         if isinstance(node.func, ast.Name):
             if node.func.id in self.config.awaitable_functions:
-                self.critical_nodes.append(node)
-                self.critical_node_names[node]=self.new_critical_node_name()
-                if not self.current_node_lookup.is_concurrency_safe_context():
-                    self.non_concurrent_critical_nodes.add(node)
+                critical_node=node
+                critical_current_node_lookup=self.current_node_lookup
+                parent = self.node_stack[-2]
+                
+                if isinstance(parent, ast.SetComp) or isinstance(parent, ast.ListComp) or isinstance(parent, ast.DictComp):
+                    if parent.elt == node:
+                        critical_node=parent
+                        critical_current_node_lookup = self.node_lookup[parent]
+                self.critical_nodes.append(critical_node)
+                self.critical_node_names[critical_node]=self.new_critical_node_name()
+                if not critical_current_node_lookup.is_concurrency_safe_context():
+                    self.non_concurrent_critical_nodes.add(critical_node)
         return node
 
     def visit_Lambda2(self, node):
@@ -103,21 +111,34 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
     def visit_GeneratorExp2(self, node):
         for generator in node.generators:
             self.declare_variable(generator.target)
+        for g in node.generators:
+            self.visit(g)
+        self.visit(node.elt)
         return node
 
     def visit_DictComp2(self, node):
         for generator in node.generators:
             self.declare_variable(generator.target)
+        for g in node.generators:
+            self.visit(g)
+        self.visit(node.key)
+        self.visit(node.value)
         return node
 
     def visit_SetComp2(self, node):
         for generator in node.generators:
             self.declare_variable(generator.target)
+        for g in node.generators:
+            self.visit(g)
+        self.visit(node.elt)
         return node
 
     def visit_ListComp2(self, node):
         for generator in node.generators:
             self.declare_variable(generator.target)
+        for g in node.generators:
+            self.visit(g)
+        self.visit(node.elt)
         return node
 
     def visit_Attribute2(self, node):

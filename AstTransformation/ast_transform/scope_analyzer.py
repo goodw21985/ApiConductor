@@ -290,19 +290,19 @@ class ScopeAnalyzer(ast.NodeTransformer):
         if self.have_symbol_table:
             for generator in node.generators:
                 self.lookups_symbols(generator.target)      
-        ret = self.visit_GeneratorExp2(node)
 
         self.scope_broadened += 1
+        ret = self.visit_GeneratorExp2(node)
 
         # need to visit the generators first, so it does not seem non-immutable
-        for g in node.generators:
-            self.visit(g)
-        self.visit(node.elt)
         self.scope_broadened -= 1
         self.pop_symbol_table_stack()
         return ret
 
     def visit_GeneratorExp2(self, node):
+        for g in node.generators:
+            self.visit(g)
+        self.visit(node.elt)
         return node
         
     def visit_DictComp(self, node):
@@ -310,19 +310,19 @@ class ScopeAnalyzer(ast.NodeTransformer):
         if self.have_symbol_table:
             for generator in node.generators:
                 self.lookups_symbols(generator.target)      
+        self.scope_broadened += 1
         ret = self.visit_DictComp2(node)
 
-        self.scope_broadened += 1
-        # need to visit the generators first, so it does not seem non-immutable
-        for g in node.generators:
-            self.visit(g)
-        self.visit(node.key)
-        self.visit(node.value)
         self.scope_broadened -= 1
         self.pop_symbol_table_stack()
         return ret
 
     def visit_DictComp2(self, node):
+        # need to visit the generators first, so it does not seem non-immutable
+        for g in node.generators:
+            self.visit(g)
+        self.visit(node.key)
+        self.visit(node.value)
         return node
         
     def visit_SetComp(self, node):
@@ -330,18 +330,19 @@ class ScopeAnalyzer(ast.NodeTransformer):
         if self.have_symbol_table:
             for generator in node.generators:
                 self.lookups_symbols(generator.target)      
+        self.scope_broadened += 1
+
         ret = self.visit_SetComp2(node)
 
-        self.scope_broadened += 1
         # need to visit the generators first, so it does not seem non-immutable
-        for g in node.generators:
-            self.visit(g)
-        self.visit(node.elt)
         self.scope_broadened -= 1
         self.pop_symbol_table_stack()
         return ret
 
-    def visit_SetComp(self, node):
+    def visit_SetComp2(self, node):
+        for g in node.generators:
+            self.visit(g)
+        self.visit(node.elt)
         return node
         
     def visit_ListComp(self, node):
@@ -349,18 +350,18 @@ class ScopeAnalyzer(ast.NodeTransformer):
         if self.have_symbol_table:
             for generator in node.generators:
                 self.lookups_symbols(generator.target)      
+        self.scope_broadened += 1
         ret = self.visit_ListComp2(node)
 
-        self.scope_broadened += 1
-        # need to visit the generators first, so it does not seem non-immutable
-        for g in node.generators:
-            self.visit(g)
-        self.visit(node.elt)
         self.scope_broadened -= 1
         self.pop_symbol_table_stack()
         return ret
 
-    def visit_ListComp(self, node):
+    def visit_ListComp2(self, node):
+        # need to visit the generators first, so it does not seem non-immutable
+        for g in node.generators:
+            self.visit(g)
+        self.visit(node.elt)
         return node
         
 

@@ -89,10 +89,8 @@ class TestQRAnalyzerModule(unittest.TestCase):
 ##########################
     def test_critical_if_split(self):
         source_code = """
-inputs = {'a': 10, 'b': 20}
-result_dict = create_dict(inputs['a'], inputs['b'])
-result_dict['c']=30
-return wrap_string(result_dict)
+processed_values = {search_email(item) for item in range(10) if item % 2 == 0}
+return processed_values
 """
 
         expected = """

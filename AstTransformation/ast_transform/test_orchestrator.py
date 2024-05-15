@@ -14,6 +14,11 @@ class Orchestrator:
         self.signal_queue = queue.Queue()
         self._private_queue={}
         self.dag = None
+        
+    def _create_task(self, result):
+        task = Task()
+        task.Result=result
+        return task
 
     def Task(self, node):
         return node

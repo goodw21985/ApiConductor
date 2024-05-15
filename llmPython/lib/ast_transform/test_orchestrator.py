@@ -12,20 +12,48 @@ class Orchestrator:
         self._task_id = {}
         self.lock = threading.Lock()
         self.signal_queue = queue.Queue()
+        self._private_queue={}
         self.dag = None
+        
+    def _create_task(self, result):
+        task = Task()
+        task.Result=result
+        return task
 
     def Task(self, node):
         return node
     
     def _completion(self, task, val):
-        time.sleep(1)  # Wait for one second
+        time.sleep(.01)  # Wait for 10
         task.Result = val
-        self.signal_queue.put(task)
-        
+        id = self._task_id[task]
+        if id in self._private_queue:
+            self._private_queue[id].put(task)
+        else:
+            self.signal_queue.put(task)
+
+
+    def _is_awaitable(self, id):
+        with self.lock:
+            seen=False
+            for item in self.dag.values():
+                for item2 in item:
+                    if item2==id:
+                        return True
+                    if isinstance(item2, list):
+                        for item3 in item2:
+                            if item3==id:
+                                return True
+
+        return False
+
     def start_task(self, id, val):
         # Create a thread and start it
         task = Task()
         self._add_task(task, id)
+        if not self._is_awaitable(id):
+            self._private_queue[id]=queue.Queue()
+            
         thread = threading.Thread(target=self._completion, args=(task,val))
         thread.start()    # client accessable functions 
         return task
@@ -41,6 +69,15 @@ class Orchestrator:
 
     def Return(self, a):
         print(a)
+
+    def _complete(self, task):
+        self.signal_queue.put(task)
+
+    def _wait(self, val, id):
+        private_queue=self._private_queue[id]
+        task = private_queue.get()  # Wait for a signal
+        private_queue.task_done()  # Mark the signal as processed
+        return val.Result
 
     # dispatch loop functions for concurrency
     def _add_task(self, task, id):
@@ -67,12 +104,26 @@ class Orchestrator:
             for targets in self.dag.values():
                 if task in targets:
                    targets.remove(task)
+                   
+                # check for an array within the array.   The inner array is removed id ANY entryies of the inner_array match
+                # this represents when ANY event in that list is sufficient, rather than ALL events being needed   
+                remove_element=None
+                for element in targets:
+                    if isinstance(element, list):
+                        if task in element:
+                            remove_element=element
+                if remove_element:
+                    targets.remove(remove_element)
+                        
 
     def _dispatch(self, dag):
         self.dag = dag
         while self._dispatch_actions():
             task = self.signal_queue.get()  # Wait for a signal
-            self._update_dag(self._task_id[task])
+            if isinstance(task, str):
+                self._update_dag(task)
+            else:
+                self._update_dag(self._task_id[task])
         
             self.signal_queue.task_done()  # Mark the signal as processed
 

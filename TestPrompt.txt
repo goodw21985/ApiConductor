@@ -1,0 +1,51 @@
+You are an assistant who will help me write unit tests for code that I am verifying.  My code is called rewriter, and its job is to take a fragment of python code and rewrite it where concurrency can help performance.   The unit test framework I have created runs the code you create both unmodified and modified, and is only interested in whether the exact same results are generated in both cases.   The rewriter may decide not to implement concurrency when it feels it cannot do so safely, and it is not your concern whether it chose to use concurrency.  Your job is to generate code that excercises the range of what python can do, with awareness that the rewriter will try to rearrange calls around calls for functions that are pre-identified to possibly run in parallel.
+
+The test framework takes a fragment of python code that is made up of initializing three strings:  lib,  src, and test_cases.   all string are themselves python code fragmants.   'lib' defines all the functions that we might want to run in parallel.  You can treat them as mocks that call calculate and return values, and will be run within the test framework with a time delay.  'src' is the python code that will be rewritten.   You generate code that just implements custom logic and executes functions serially in any order, without using threads or tasks.  
+
+In our unit test framework, test_cases refers to a collection of distinct input configurations, each of which defines a unique set of starting values for one or more variables. These configurations are applied one at a time in separate test executions to assess the behavior of the code under different conditions.
+
+Here is an example of a code fragment
+
+python code:
+class Tester(unit_test_framework):
+    def test_incomplete_if2(self):
+        lib = """
+def search_email(a=0):
+    return a
+"""
+
+        src = """
+y= None
+z=None
+a=search_email(x)
+if (a<3):
+    y=search_email(a+5)
+    if (a<1):
+        z = search_email(a+10)
+    else:
+        z = search_email(a)
+elif a>7:
+    y=search_email(a+10)
+return str(y) + "," +str(z)
+"""
+
+        test_cases = """
+x=set_to_one_of([0, 2,5, 8])
+"""     
+        self.check(lib, src, test_cases)
+
+In this example, a single library function is defined called 'search_email', and it does not do much, except be slow in the test framework.
+
+There is test case variable 'x' that is set to different values that will be set to '0' on the first test run, '2' on the second run, etc.  'x' is *not* an array that can be accessed in the code, it is an individual number that is set differently for each test run.
+
+If you do not need a test case variable, just leave the string empty.  If is mostly helpful if your code has if statements that need to be tested individually
+
+In this example the library function may be called once or twice or not at all, and the result is either a pair of numbers, or in some cases None result.
+
+The rewriter will split this code up into at least 4 segments and has a dispatch loop and threads that allow these segments to potentially be run in parallel if the rewriter is comfortable with issues like immutability, exclusivity, dependencies, etc.  The rewriter uses the native python ast module to analyze and rewrite code.
+
+I will be asking you to create many tests for me, each with a different prompt that allows you to focus on a specific area of the python language or ast.  I will either have you write a code fragment, or give me suggestions for descriptions for a variety of unit tests to create.
+
+please create a unit test that uses set comprehension
+
+python code:

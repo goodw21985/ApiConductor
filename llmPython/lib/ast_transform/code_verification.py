@@ -3,6 +3,7 @@ import sys
 from multiprocessing import Value
 from ast_transform import astor_fork
 from ast_transform import rewriter
+from ast_transform import common
 
 
 class VerificationVisitor(ast.NodeVisitor):
@@ -145,18 +146,11 @@ class VerificationVisitor(ast.NodeVisitor):
                 if isinstance(node.func, ast.Attribute) and isinstance(
                     node.func.value, ast.Name
                 ):
-                    if self.config.use_async:
-                        if (
-                            node.func.attr == "create_task"
-                            and node.func.value.id == "asyncio"
-                        ):
-                            return True
-                    else:
-                        if (
-                            node.func.attr == rewriter.Rewriter.TASKFUNCTION
-                            and node.func.value.id == rewriter.Rewriter.ORCHESTRATOR
-                        ):
-                            return True
+                    if (
+                        node.func.attr == rewriter.Rewriter.TASKFUNCTION
+                        and node.func.value.id == rewriter.Rewriter.ORCHESTRATOR
+                    ):
+                        return True
 
         return False
 
@@ -165,12 +159,7 @@ class VerificationVisitor(ast.NodeVisitor):
         isAssignChild = False
         isExprChild = False
         if isinstance(self.statement, ast.Assign):
-            if self.config.use_async:
-                if self.IsTaskCall(self.statement.value):
-                    child = self.statement.value.args[0]
-                    isAssignChild = child == node
-            else:
-                isAssignChild = self.statement.value == node
+            isAssignChild = self.statement.value == node
 
         elif isinstance(self.statement, ast.Expr):
             isExprChild = self.statement.value == node
@@ -184,21 +173,10 @@ class VerificationVisitor(ast.NodeVisitor):
             name = node.func.attr
             self.async_calls.add(name)
 
-            if self.config.use_async:
-                if (
-                    not isAssignChild
-                    and not isExprChild
-                    and name != rewriter.Rewriter.ORCHESTRATORCLASS
-                    and name != rewriter.Rewriter.TASKCLASS
-                ):
-                    raise ValueError(
-                        "orchestrator functions must be assigned as task or in expr statements"
-                    )
-
             for arg in node.args:
                 if isinstance(arg, ast.Dict) and name == rewriter.Rewriter.FUNCTIONDISPATCH:
                     pass
-                elif not isinstance(arg, ast.Name) and not self.IsConstant(arg):
+                elif not isinstance(arg, ast.Name) and not common.is_constant(arg):
                     if (
                         isinstance(arg, ast.Call)
                         and isinstance(arg.func, ast.Name)
@@ -208,6 +186,9 @@ class VerificationVisitor(ast.NodeVisitor):
                         pass
                     elif name == rewriter.Rewriter.TASKFUNCTION:
                         # Task() is allowed
+                        pass
+                    elif name == rewriter.Rewriter.FUNCTIONWAIT:
+                        # _wait() is allowed
                         pass
                     else:
                         raise ValueError(
@@ -294,23 +275,6 @@ class VerificationVisitor(ast.NodeVisitor):
         child = next(iter(self.children.values()))
         child.checkawait()
         child.validateAll(validate)
-
-    def IsConstant(self, node):
-        if sys.version_info >= (3, 9):
-            if isinstance(node, ast.Constant):
-                return True
-        else:
-            if isinstance(node, ast.Num):
-                return True
-            if isinstance(node, ast.Str):
-                return True
-            if isinstance(node, ast.Bytes):
-                return True
-            if isinstance(node, ast.Ellipsis):
-                return True
-            if isinstance(node, ast.NameConstant):
-                return True
-        return False
 
     def Log(self, node, msg=None):
         if msg == None:

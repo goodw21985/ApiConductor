@@ -239,21 +239,6 @@ class DependencyAnalyzer(scope_analyzer.ScopeAnalyzer):
                 
         return node
 
-    def visit_GeneratorExp2(self, node):
-        return node
-
-    def visit_DictComp2(self, node):
-        return node
-
-    def visit_SetComp2(self, node):
-        return node
-
-    def visit_ListComp2(self, node):
-        return node
-
-    def visit_Lambda2(self, node):
-        return node
-
 
     def visit_Name2(self, node):
         s = self.current_node_lookup
