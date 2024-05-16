@@ -85,6 +85,40 @@ return ",".join(str(item) for item in list(processed_values))
         self.check(lib, src, inputs)
 
 #######################
+    def test_dict_comprehension(self):
+        lib = """
+def compute_value(item):
+    # Simulate some computation that might be optimized through parallel processing
+    return item + 100
+"""
+
+        src = """
+processed_values = {item:compute_value(item) for item in range(10) if item % 2 == 1}
+return ",".join(f"{key}:{value}" for key, value in processed_values.items())
+"""
+
+        inputs = """
+"""
+        self.check(lib, src, inputs)
+
+#######################
+    def test_dict_rev_comprehension(self):
+        lib = """
+def compute_value(item):
+    # Simulate some computation that might be optimized through parallel processing
+    return item + 100
+"""
+
+        src = """
+processed_values = {compute_value(item):item for item in range(10) if item % 2 == 1}
+return ",".join(f"{key}:{value}" for key, value in processed_values.items())
+"""
+
+        inputs = """
+"""
+        self.check(lib, src, inputs)
+
+#######################
 
     def test_dict_and_string_manipulation(self):
         lib = """

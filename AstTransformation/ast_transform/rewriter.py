@@ -98,11 +98,50 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         self.comp_groups[call_id] = node
         return self.DoWait(self.MakeLoadName(call_id))
         
+    def visit_DictComp2(self, node):
+        generators = [self.visit(g) for g in node.generators]
+        key = self.visit(node.key)
+        value = self.visit(node.value)
+        if node not in self.critical_nodes: 
+            return ast.DictComp(key = key, value=value, generators=generators)
+        
+        call_id = "_" + self.critical_node_names[node]
+        agg_group_id = self.GROUP_PREFIX + self.critical_node_names[node]
+        call_id_comp = self.COMP_PREFIX + self.critical_node_names[node]
+        group = self.node_lookup[node].assigned_concurrency_group
+        # assign call to call_id variable
+        groupname = group.name
+        dict_comp = ast.DictComp(key = key, value=value, generators=generators)
+        assign = ast.Assign(targets=[self.MakeStoreName(call_id_comp)], value=dict_comp)
+        self.concurrency_start_code[groupname].append((node,assign))
+        self.concurrency_start_code[groupname].append((node,self.aggregation_completion(call_id_comp)))
+        
+        self.add_nonlocal(groupname, call_id_comp)
+        self.allnonlocals.add(call_id_comp)
+        self.allnonlocals.add(call_id)
+
+        parent_group = self.node_lookup[self.node_stack[-2]].assigned_concurrency_group.name
+        self.add_nonlocal(parent_group, call_id_comp)
+
+        self.add_to_dag(group, call_id)
+        self.add_to_dag_simple(agg_group_id, call_id_comp)
+        
+        # =>  _C0.Result = {item.Result for item in _comp_C0}
+        if isinstance(key,ast.Call):
+            self.concurrency_group_code[agg_group_id] = [self.create_dict_rev_comp(call_id,call_id_comp),self.aggregation_completion(call_id)]
+        else:          
+           self.concurrency_group_code[agg_group_id] = [self.create_dict_comp(call_id,call_id_comp),self.aggregation_completion(call_id)]
+        self.concurrency_start_code[agg_group_id] = []
+        self.concurrency_group_nonlocals[agg_group_id] = [call_id,call_id_comp]
+        
+        self.comp_groups[call_id] = node
+        return self.DoWait(self.MakeLoadName(call_id))
+        
     def visit_ListComp2(self, node):
         generators = [self.visit(g) for g in node.generators]
         call = self.visit(node.elt)
         if node not in self.critical_nodes: 
-            return ast.SetComp(elt = call, generators=generators)
+            return ast.ListComp(elt = call, generators=generators)
         
         call_id = "_" + self.critical_node_names[node]
         agg_group_id = self.GROUP_PREFIX + self.critical_node_names[node]
@@ -807,6 +846,108 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         set_comp = ast.SetComp(
             elt=ast.Attribute(
                 value=ast.Name(id='item', ctx=ast.Load()),
+                attr='Result',
+                ctx=ast.Load()
+            ),
+            generators=[generator]
+        )
+
+        call = ast.Call(
+            func=ast.Attribute(
+                value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
+                attr=self.FUNCTIONCREATETASK,
+                ctx=ast.Load()
+            ),
+            args=[set_comp],
+            keywords=[]
+        )
+
+        assign = ast.Assign(
+            targets=[target],
+            value=call
+        )
+        
+        return assign
+
+    def create_dict_comp(self, name1, name2):
+        import ast
+
+        target = ast.Name(id='_C0', ctx=ast.Store())
+
+        generator = ast.comprehension(
+            target=ast.Tuple(
+                    elts=[
+                        ast.Name(id='key', ctx=ast.Store()),
+                        ast.Name(id='value', ctx=ast.Store())
+                    ]),
+            iter=ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Name(id=name2, ctx=ast.Load()),
+                        attr='items',
+                        ctx=ast.Load()
+                    ),
+                    args=[],
+                    keywords=[]
+                ),
+            ifs=[],
+            is_async=0
+        )
+
+        set_comp = ast.DictComp(
+            key = ast.Name('key'),
+            value=ast.Attribute(
+                value=ast.Name(id='value', ctx=ast.Load()),                
+                attr='Result',
+                ctx=ast.Load()
+            ),
+            generators=[generator]
+        )
+
+        call = ast.Call(
+            func=ast.Attribute(
+                value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
+                attr=self.FUNCTIONCREATETASK,
+                ctx=ast.Load()
+            ),
+            args=[set_comp],
+            keywords=[]
+        )
+
+        assign = ast.Assign(
+            targets=[target],
+            value=call
+        )
+        
+        return assign
+
+    def create_dict_rev_comp(self, name1, name2):
+        import ast
+
+        target = ast.Name(id='_C0', ctx=ast.Store())
+
+        generator = ast.comprehension(
+            target=ast.Tuple(
+                    elts=[
+                        ast.Name(id='key', ctx=ast.Store()),
+                        ast.Name(id='value', ctx=ast.Store())
+                    ]),
+            iter=ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Name(id=name2, ctx=ast.Load()),
+                        attr='items',
+                        ctx=ast.Load()
+                    ),
+                    args=[],
+                    keywords=[]
+                ),
+            ifs=[],
+            is_async=0
+        )
+
+        set_comp = ast.DictComp(
+            value = ast.Name('value'),
+            key=ast.Attribute(
+                value=ast.Name(id='key', ctx=ast.Load()),                
                 attr='Result',
                 ctx=ast.Load()
             ),

@@ -78,8 +78,15 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                 critical_current_node_lookup=self.current_node_lookup
                 parent = self.node_stack[-2]
                 
-                if isinstance(parent, ast.SetComp) or isinstance(parent, ast.ListComp) or isinstance(parent, ast.DictComp):
+                if isinstance(parent, ast.SetComp) or isinstance(parent, ast.ListComp):
                     if parent.elt == node:
+                        critical_node=parent
+                        critical_current_node_lookup = self.node_lookup[parent]
+                elif isinstance(parent, ast.DictComp):
+                    if parent.key == node:
+                        critical_node=parent
+                        critical_current_node_lookup = self.node_lookup[parent]
+                    elif parent.value == node:
                         critical_node=parent
                         critical_current_node_lookup = self.node_lookup[parent]
                 self.critical_nodes.append(critical_node)
