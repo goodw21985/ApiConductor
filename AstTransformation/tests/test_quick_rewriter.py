@@ -94,60 +94,58 @@ return processed_values
 """
 
         expected = """
-inputs = {'a': 10, 'b': 20}
-result_dict = create_dict(inputs['a'], inputs['b'])
-result_dict['c']=30
-return wrap_string(result_dict)
+processed_values = {search_email(item) for item in range(10) if item % 2 == 0}
+return processed_values
 
 
-C0 => G0 used by (C1) = create_dict(inputs['a'], inputs['b'])
-C2 => G1 used by () = return wrap_string(result_dict)
+C0 => G0 used by (C1) = {search_email(item) for item in range(10) if item % 2 == 0}
+C1 => G1 used by () = return processed_values
 
 G0 <= (C0) : uses 
-G1 <= (C2) : uses G0
+G1 <= (C1) : uses G0
 
-G0 = create_dict(inputs['a'], inputs['b'])
-G1 = return wrap_string(result_dict)
-G0: C0 inputs = {'a': 10, 'b': 20}
-G0: C0 {'a': 10, 'b': 20}
-G0: C0 \"\"\"a\"\"\"
-G0: C0 \"\"\"b\"\"\"
+G0 = {search_email(item) for item in range(10) if item % 2 == 0}
+G1 = return processed_values
+G1: C1 processed_values = {search_email(item) for item in range(10) if item % 2 == 0}
+G0: C1 {search_email(item) for item in range(10) if item % 2 == 0}
+G0: C0 for item in range(10) if item % 2 == 0
+G0: C0 item
+G0: C0 range(10)
+G0: C0 range
 G0: C0 10
-G0: C0 20
-G1: C1 result_dict = create_dict(inputs['a'], inputs['b'])
-G0: C1 create_dict(inputs['a'], inputs['b'])
-G0: C0 create_dict
-G0: C0 inputs['a']
-G0: C0 inputs
-G0: C0 \"\"\"a\"\"\"
-G0: C0 inputs['b']
-G0: C0 inputs
-G0: C0 \"\"\"b\"\"\"
-G1:  return wrap_string(result_dict)
-G1: C2 wrap_string(result_dict)
-G1: C1 wrap_string
-G1: C1 result_dict
+G0: C0 item % 2 == 0
+G0: C0 item % 2
+G0: C0 item
+G0: C0 2
+G0: C0 0
+G0: C0 search_email(item)
+G0: C0 search_email
+G0: C0 item
+G1:  return processed_values
+G1: C1 processed_values
 
 import orchestrator
 orchestrator = orchestrator.Orchestrator()
 
 
 def _program(orchestrator):
-    _1 = _2 = _C0 = _C1 = _return_value = inputs = result_dict = None
+    _C0 = _comp_C0 = _return_value = item = processed_values = None
 
     def _concurrent_G0():
-        nonlocal _1, _2, _C0, inputs
-        inputs = {'a': 10, 'b': 20}
-        _1 = inputs['a']
-        _2 = inputs['b']
-        _C0 = orchestrator.create_dict(_1, _2, _id='_C0')
+        nonlocal _C0, item
+        _comp_C0 = [orchestrator.search_email(item, _id=orchestrator._create_id('_C0')) for item in range(10) if item % 2 == 0]
+        orchestrator._complete_comp('_C0', 'G_C0', '_comp_C0')
 
     def _concurrent_G1():
-        nonlocal _C0, _C1, _return_value, inputs, result_dict
-        result_dict = _C0.Result
-        result_dict['c'] = 30
-        _return_value = orchestrator._wait(orchestrator.wrap_string(result_dict, _id='_C1'), '_C1')
-    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0']})
+        nonlocal _comp_C0, _return_value, processed_values
+        processed_values = _C0.Result
+        _return_value = processed_values
+
+    def _concurrent_G_C0():
+        nonlocal _C0, _comp_C0
+        _C0 = orchestrator._create_task({item.Result for item in _comp_C0})
+        orchestrator._complete('_C0')
+    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0'], _concurrent_G_C0: ['_comp_C0']})
     return _return_value
 
 

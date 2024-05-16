@@ -32,10 +32,11 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     RETURN_VALUE_NAME = "_return_value"
     FUNCTIONDISPATCH = "_dispatch"
     FUNCTIONCOMPLETE = "_complete"
-    FUNCTIONCOMPLETECOMP = "_complete_comp"
     FUNCTIONCREATEID = "_create_id"
     FUNCTIONCREATETASK = '_create_task'
     FUNCTIONWAIT = "_wait"
+    GROUP_PREFIX = "G_"
+    COMP_PREFIX="_comp_"
     RESULTNAME = "Result"
     TASKFUNCTION = "Task"
     TASKCLASS = "Task"
@@ -69,17 +70,17 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             return ast.SetComp(elt = call, generators=generators)
         
         call_id = "_" + self.critical_node_names[node]
-        agg_group_id = "G_" + self.critical_node_names[node]
-        call_id_comp = "_comp_" + self.critical_node_names[node]
+        agg_group_id = self.GROUP_PREFIX + self.critical_node_names[node]
+        call_id_comp = self.COMP_PREFIX + self.critical_node_names[node]
         group = self.current_node_lookup.assigned_concurrency_group
         # assign call to call_id variable
         groupname = group.name
         list_comp = ast.ListComp(elt=call, generators=generators)
         assign = ast.Assign(targets=[self.MakeStoreName(call_id_comp)], value=list_comp)
         self.concurrency_start_code[groupname].append((node,assign))
-        self.concurrency_start_code[groupname].append((node,self.comp_completion(call_id, agg_group_id,call_id_comp)))
+        self.concurrency_start_code[groupname].append((node,self.aggregation_completion(call_id_comp)))
         
-        self.add_nonlocal(groupname, call_id)
+        self.add_nonlocal(groupname, call_id_comp)
         self.allnonlocals.add(call_id_comp)
         self.allnonlocals.add(call_id)
 
@@ -97,11 +98,45 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         self.comp_groups[call_id] = node
         return self.DoWait(self.MakeLoadName(call_id))
         
+    def visit_ListComp2(self, node):
+        generators = [self.visit(g) for g in node.generators]
+        call = self.visit(node.elt)
+        if node not in self.critical_nodes: 
+            return ast.SetComp(elt = call, generators=generators)
+        
+        call_id = "_" + self.critical_node_names[node]
+        agg_group_id = self.GROUP_PREFIX + self.critical_node_names[node]
+        call_id_comp = self.COMP_PREFIX + self.critical_node_names[node]
+        group = self.current_node_lookup.assigned_concurrency_group
+        # assign call to call_id variable
+        groupname = group.name
+        list_comp = ast.ListComp(elt=call, generators=generators)
+        assign = ast.Assign(targets=[self.MakeStoreName(call_id_comp)], value=list_comp)
+        self.concurrency_start_code[groupname].append((node,assign))
+        self.concurrency_start_code[groupname].append((node,self.aggregation_completion(call_id_comp)))
+        
+        self.add_nonlocal(groupname, call_id_comp)
+        self.allnonlocals.add(call_id_comp)
+        self.allnonlocals.add(call_id)
+
+        parent_group = self.node_lookup[self.node_stack[-2]].assigned_concurrency_group.name
+        self.add_nonlocal(parent_group, call_id_comp)
+
+        self.add_to_dag(group, call_id)
+        self.add_to_dag_simple(agg_group_id, call_id_comp)
+        
+        # =>  _C0.Result = {item.Result for item in _comp_C0}
+        self.concurrency_group_code[agg_group_id] = [self.create_list_comp(call_id,call_id_comp),self.aggregation_completion(call_id)]
+        self.concurrency_start_code[agg_group_id] = []
+        self.concurrency_group_nonlocals[agg_group_id] = [call_id,call_id_comp]
+        
+        self.comp_groups[call_id] = node
+        return self.DoWait(self.MakeLoadName(call_id))
+        
     def visit_Call_For_Comprehension(self, call_node, comp_node):
         call_id = "_" + self.critical_node_names[comp_node]
-        
+        agg_group_id=self.GROUP_PREFIX + self.critical_node_names[comp_node]
         # {search_email(item) for item in range(10) if item % 2 == 0}
-        st = astor_fork.to_source(comp_node)
         comp_args =[g.target.id for g in comp_node.generators]
         new_args = []
         for arg in call_node.args:
@@ -123,7 +158,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         new_keyword = ast.keyword(
             arg=self.CALLID, 
-            value=self.create_runtime_id(call_id))
+            value=self.create_runtime_id(call_id, self.FUNCTIONPREFIX+ agg_group_id))
         
         new_keywords.append(new_keyword)
 
@@ -709,20 +744,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             )
 
         return function_def
-            
 
-    def comp_completion(self,name1, name2, name3):
-        # => orchestrator._complete_comp("G_a", "_C0","_comp_C0")
-        return ast.Expr(ast.Call(
-            func=ast.Attribute(
-                value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
-                attr=self.FUNCTIONCOMPLETECOMP,
-                ctx=ast.Load(),
-            ),
-            args=[self.MakeString(name1),self.MakeString(name2),self.MakeString(name3)],
-            keywords=[],
-        ))
-    
     def aggregation_completion(self,name):
         # => orchestrator._complete("G_a")
         return ast.Expr(ast.Call(
@@ -735,15 +757,15 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             keywords=[],
         ))
         
-    def create_runtime_id(self,name):
-        # => orchestrator._create_id("_C0")
+    def create_runtime_id(self,name, group):
+        # => orchestrator._create_id("_C0",_concurrent_G_C0)
         return ast.Call(
             func=ast.Attribute(
                 value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
                 attr=self.FUNCTIONCREATEID,
                 ctx=ast.Load(),
             ),
-            args=[self.MakeString(name)],
+            args=[self.MakeString(name), ast.Name(group)],
             keywords=[],
         )
         
@@ -783,6 +805,44 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         )
 
         set_comp = ast.SetComp(
+            elt=ast.Attribute(
+                value=ast.Name(id='item', ctx=ast.Load()),
+                attr='Result',
+                ctx=ast.Load()
+            ),
+            generators=[generator]
+        )
+
+        call = ast.Call(
+            func=ast.Attribute(
+                value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
+                attr=self.FUNCTIONCREATETASK,
+                ctx=ast.Load()
+            ),
+            args=[set_comp],
+            keywords=[]
+        )
+
+        assign = ast.Assign(
+            targets=[target],
+            value=call
+        )
+        
+        return assign
+
+    def create_list_comp(self, name1, name2):
+        import ast
+
+        target = ast.Name(id='_C0', ctx=ast.Store())
+
+        generator = ast.comprehension(
+            target=ast.Name(id='item', ctx=ast.Store()),
+            iter=ast.Name(id=name2, ctx=ast.Load()),
+            ifs=[],
+            is_async=0
+        )
+
+        set_comp = ast.ListComp(
             elt=ast.Attribute(
                 value=ast.Name(id='item', ctx=ast.Load()),
                 attr='Result',

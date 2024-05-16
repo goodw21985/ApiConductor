@@ -13,6 +13,7 @@ class Orchestrator:
         self.lock = threading.Lock()
         self.signal_queue = queue.Queue()
         self._private_queue={}
+        self.created_id_map={}
         self.dag = None
         
     def _create_task(self, result):
@@ -20,6 +21,23 @@ class Orchestrator:
         task.Result=result
         return task
 
+    def _create_id(self, orig_symbol, concurrency_group):
+        with self.lock:
+            if orig_symbol not in self.created_id_map:
+                self.created_id_map[orig_symbol]=[]
+            new_symbol = orig_symbol+"__"+str(len(self.created_id_map[orig_symbol]))
+            self.dag[concurrency_group].append(new_symbol)
+            self.created_id_map[orig_symbol].append(new_symbol)  
+        return new_symbol
+
+    #  orchestrator._complete_comp('_C0', '_concurrent_G_C0', '_comp_C0')
+    def _complete_comp(self, orig_symbol, concurrency_group, intermediate_symbol):
+        with self.lock:
+            for dependent in self.created_id_map[orig_symbol]:
+                self.dag[concurrency_group].append(dependent)
+        self._complete(intermediate_symbol)
+                
+        
     def Task(self, node):
         return node
     

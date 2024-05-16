@@ -243,6 +243,8 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                 return True
             if isinstance(item, ast.Assign):
                 return False
+            if isinstance(item, ast.comprehension):
+                return False
         return None
     
     def post_process(self):

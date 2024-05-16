@@ -53,7 +53,23 @@ x=[2, 3, 8]
         self.check(lib, src, inputs)
 
 #######################
-   def test_dict_and_string_manipulation(self):
+    def test_set_comprehension(self):
+        lib = """
+def compute_value(item):
+    return item + 100
+"""
+
+        src = """
+processed_values = {compute_value(item) for item in range(10) if item % 2 == 0}
+return ",".join(str(item) for item in list(processed_values))
+"""
+
+        inputs = """
+"""
+        self.check(lib, src, inputs)
+#######################
+
+    def test_dict_and_string_manipulation(self):
         lib = """
 def create_dict(a=0, b=1):
     return {'num': a, 'double': a*2, 'sum': a+b}

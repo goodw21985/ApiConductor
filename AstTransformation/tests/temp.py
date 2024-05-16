@@ -16,11 +16,11 @@ def _program(orchestrator):
     _C0 = _comp_C0 = _return_value = item = processed_values = None
 
     def _concurrent_G0():
-        nonlocal _C0, _comp_C0, _return_value, item, processed_values
+        nonlocal _comp_C0, _return_value, item, processed_values
         processed_values = _C0.Result
         _return_value = ','.join(str(item) for item in list(processed_values))
-        _comp_C0 = [orchestrator.compute_value(item, _id=orchestrator._create_id('_C0')) for item in range(10) if item % 2 == 0]
-        orchestrator._complete_comp('_C0', '_comp_C0', '_comp_C0')
+        _comp_C0 = [orchestrator.compute_value(item, _id=orchestrator._create_id('_C0', _concurrent_G_C0)) for item in range(10) if item % 2 == 0]
+        orchestrator._complete('_comp_C0')
 
     def _concurrent_G_C0():
         nonlocal _C0, _comp_C0
