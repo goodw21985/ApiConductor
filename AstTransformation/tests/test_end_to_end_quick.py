@@ -10,18 +10,21 @@ class TestMockModuleQuick(unittest.TestCase):
         self.assertEqual(m.capture2, m.capture1)
 
 #######################
-    def test_dict_rev_comprehension(self):
+    def test_list_comprehension(self):
         lib = """
+def get_items(n):
+    return range(n)
+    
 def compute_value(item):
     # Simulate some computation that might be optimized through parallel processing
     return item + 100
 """
 
         src = """
-processed_values = {compute_value(item)+3:item for item in range(10) if item % 2 == 1}
-return ",".join(f"{key}:{value}" for key, value in processed_values.items())
+processed_values = [compute_value(item) for item in get_items(10) if item % 2 == 1]
+return ",".join(str(item) for item in list(processed_values))
 """
-        
+
         inputs = """
 """
         self.check(lib, src, inputs)

@@ -834,7 +834,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     def create_set_comp(self, name1, name2):
         import ast
 
-        target = ast.Name(id='_C0', ctx=ast.Store())
+        target = ast.Name(id=name1, ctx=ast.Store())
 
         generator = ast.comprehension(
             target=ast.Name(id='item', ctx=ast.Store()),
@@ -872,7 +872,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     def create_dict_comp(self, name1, name2):
         import ast
 
-        target = ast.Name(id='_C0', ctx=ast.Store())
+        target = ast.Name(id=name1, ctx=ast.Store())
 
         generator = ast.comprehension(
             target=ast.Tuple(
@@ -923,7 +923,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     def create_dict_rev_comp(self, name1, name2):
         import ast
 
-        target = ast.Name(id='_C0', ctx=ast.Store())
+        target = ast.Name(id=name1, ctx=ast.Store())
 
         generator = ast.comprehension(
             target=ast.Tuple(
@@ -974,7 +974,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     def create_list_comp(self, name1, name2):
         import ast
 
-        target = ast.Name(id='_C0', ctx=ast.Store())
+        target = ast.Name(id=name1, ctx=ast.Store())
 
         generator = ast.comprehension(
             target=ast.Name(id='item', ctx=ast.Store()),
