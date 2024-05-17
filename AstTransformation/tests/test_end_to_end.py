@@ -119,6 +119,23 @@ return ",".join(f"{key}:{value}" for key, value in processed_values.items())
         self.check(lib, src, inputs)
 
 #######################
+    def test_dict_rev_unsafe_comprehension(self):
+        lib = """
+def compute_value(item):
+    # Simulate some computation that might be optimized through parallel processing
+    return item + 100
+"""
+
+        src = """
+processed_values = {compute_value(item)+3:item for item in range(10) if item % 2 == 1}
+return ",".join(f"{key}:{value}" for key, value in processed_values.items())
+"""
+
+        inputs = """
+"""
+        self.check(lib, src, inputs)
+
+#######################
 
     def test_dict_and_string_manipulation(self):
         lib = """
