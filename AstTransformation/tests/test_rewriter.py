@@ -194,8 +194,6 @@ orchestrator.Return(_program(orchestrator))"""
         result = astor_fork.to_source(rewrite).strip()
         print(result)
         #
-        with open("C:/repos/llmPython/LLmModule/test.py", 'w') as file:
-            file.write(result)  
         if validate!=None:
             verify = code_verification.CodeVerification(rewrite, config, validate)       
    
