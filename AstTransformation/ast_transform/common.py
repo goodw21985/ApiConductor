@@ -149,18 +149,28 @@ class NodeCrossReference:
     def is_concurrency_safe_context(self):
         for node in self.ancestors[:-1]:
             if isinstance(node, ast.For):
+                #TODO not unsafe if through iter
+                # but will require placement
                 return False
             if isinstance(node, ast.While):
+                #TODO not unsafe if through iter
+                # but will require placement
                 return False
             if isinstance(node, ast.With):
                 return False
             if isinstance(node, ast.Try):
                 return False
             if isinstance(node, ast.DictComp):
+                #TODO not unsafe if through comprehensions
+                # but will require placement
                 return False
             if isinstance(node, ast.SetComp):
+                #TODO not unsafe if through comprehensions
+                # but will require placement
                 return False
             if isinstance(node, ast.ListComp):
+                #TODO not unsafe if through comprehensions
+                # but will require placement
                 return False
         return True
     def is_constant_write(self):

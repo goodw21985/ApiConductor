@@ -187,8 +187,6 @@ class SplitterAnalyzer(scope_analyzer.ScopeAnalyzer):
                 nodec.assigned_concurrency_group = aggregated
             else:
                 nodec.assigned_concurrency_group = trimmed_groups[0]
-            if nodec.assigned_concurrency_group.name=="G_z":
-                pass
 
 
 def Scan(tree, parent=None):

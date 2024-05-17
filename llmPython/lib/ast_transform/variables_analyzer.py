@@ -27,6 +27,16 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
         self.critical_nodes_if_groups = {}
         self.critical_node_names = {}
         self.global_return_statement = None
+        self.class_symbols_stack = []
+        self.def_class_param_stack = []
+
+        
+    def visit_pre(self, node):
+        if isinstance(node, ast.Compare):
+            pass
+        self.current_node_lookup = common.NodeCrossReference(self.current_node_stack, self.current_if_stack)
+        self.node_lookup[node] = self.current_node_lookup
+    
     
     def visit_Name2(self, node):
         name = node.id
@@ -66,7 +76,7 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                         pass
                     else:
                         break
-
+          
             self.add_variable_reference(name, group, self.current_node_lookup)
         return node
 
@@ -78,8 +88,15 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                 critical_current_node_lookup=self.current_node_lookup
                 parent = self.node_stack[-2]
                 
-                if isinstance(parent, ast.SetComp) or isinstance(parent, ast.ListComp) or isinstance(parent, ast.DictComp):
+                if isinstance(parent, ast.SetComp) or isinstance(parent, ast.ListComp):
                     if parent.elt == node:
+                        critical_node=parent
+                        critical_current_node_lookup = self.node_lookup[parent]
+                elif isinstance(parent, ast.DictComp):
+                    if parent.key == node:
+                        critical_node=parent
+                        critical_current_node_lookup = self.node_lookup[parent]
+                    elif parent.value == node:
                         critical_node=parent
                         critical_current_node_lookup = self.node_lookup[parent]
                 self.critical_nodes.append(critical_node)
@@ -107,7 +124,7 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                 common.SymbolTableEntry.ATTR_DECLARED,
                 self.current_node_lookup,
             )
-        
+                  
     def visit_GeneratorExp2(self, node):
         for generator in node.generators:
             self.declare_variable(generator.target)
@@ -167,7 +184,24 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
             self.add_variable_reference(name, group, self.current_node_lookup)
         return node
 
+    def push_symbol_table_stack(self, node):
+        self.symbol_table = self.symbol_table[node].child
+        self.symbol_table_stack.append(self.symbol_table)
+
+    def pop_symbol_table_stack(self):
+        self.symbol_table_stack.pop()
+        self.symbol_table = self.symbol_table_stack[-1]
+
+
+        
     def visit_arg2(self, node):
+        if (
+            not self.def_class_param_stack
+            or self.def_class_param_stack[-1] != node.arg
+        ):
+            self.current_node_lookup.symbol = self.get_variable_reference(
+                node.arg, self.current_node_stack
+            )
         if not self.def_class_param_stack or self.def_class_param_stack[-1] != node.arg:
             self.add_variable_reference(
                 node.arg,
@@ -182,6 +216,7 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
             self.Redirect(target, root)
         self.generic_visit(node)
         return node
+    
 
     def visit_Nonlocal(self, node):
         for target in node.names:
@@ -206,6 +241,31 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
             value[key] = common.SymbolTableEntry()
         return value[key].redirect
 
+
+    def IgnoreSymbol(self, node):
+        if self.def_class_param_stack and self.def_class_param_stack[-1] == node.id:
+            return True
+        if isinstance(node.ctx, ast.Load):
+            parent = self.current_node_stack[-2]
+            if parent and isinstance(parent, ast.FunctionDef):
+                return True
+        return False
+
+    def find_frame(self, key):
+        latest_object_with_key = None
+        for obj in reversed(self.symbol_table_stack):
+            if key in obj:
+                latest_object_with_key = obj
+                break
+
+            # only lambdas can implicitly get scope broadened
+            if self.scope_broadened == 0:
+                break
+        if latest_object_with_key is not None:
+            return latest_object_with_key
+        else:
+            return self.symbol_table_stack[-1] if self.symbol_table_stack else None
+
     def add_variable_reference(self, key, group, value):
         dictionary = self.find_frame(key)
         if key not in dictionary:
@@ -219,19 +279,28 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
             item.notLocal = True
 
         item.add_usage(group,value)
+        self.current_node_lookup.symbol = item
 
     def add_class_variable_reference(self, key, group, value):
         dictionary = self.class_symbols_stack[-1]
         if key not in dictionary:
             dictionary[key] = common.SymbolTableEntry()
         dictionary[key].add_usage(group,value)
+        self.current_node_lookup.symbol = dictionary[key]
 
+    def pop_class_symbol_stack(self):
+        self.class_symbols_stack.pop()
+        
+    def push_class_symbol_stack(self):
+        self.class_symbols_stack.append(self.symbol_table)
+        
     def push_symbol_table_stack(self, name):
         if name not in self.symbol_table:
             self.symbol_table[name] = common.SymbolTableEntry()
         self.symbol_table[name].child = {}
         self.symbol_table = self.symbol_table[name].child
         self.symbol_table_stack.append(self.symbol_table)
+
 
     def pop_symbol_table_stack(self):
         self.symbol_table_stack.pop()
@@ -243,8 +312,55 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                 return True
             if isinstance(item, ast.Assign):
                 return False
+            if isinstance(item, ast.comprehension):
+                return False
         return None
     
+    # returns a tuple with the (variable name, is a class variable (i.e. self.x), has other attributes (i.e.x.y.x))
+    def GetVariableContext(self):
+        list = []
+        for item in self.current_node_stack[::-1]:
+            if isinstance(item, ast.Attribute):
+                list.insert(0, item.attr)
+                last = item
+            else:
+                break
+        if isinstance(last.value, ast.Name):
+            list.insert(0, last.value.id)
+            if len(list) == 1:
+                return (list[-1], False, False)
+            if not self.def_class_param_stack:
+                selfVal = None
+            else:
+                selfVal = self.def_class_param_stack[-1]
+            if selfVal == list[0]:
+                if len(list) == 2:
+                    return (list[-1], True, False)
+                else:
+                    return (list[0], True, True)
+            else:
+                if len(list) == 1:
+                    return (list[-1], False, False)
+                else:
+                    return (list[0], False, True)
+        else:
+            # ','.join(f'x' for ...)
+            return (None, False, True)
+
+    def push_def_class_param_stack(self):
+        classParam = self.GetClassParameterName()
+        self.def_class_param_stack.append(classParam)
+        
+    def pop_def_class_param_stack(self):
+        self.def_class_param_stack.pop()
+
+    def GetClassParameterName(self):
+        functionDef = self.current_node_stack[-1]
+        if self.IsClassFunction():
+            return functionDef.args.args[0].arg
+        else:
+            return None
+
     def post_process(self):
         # any critical nodes in if conditions will be grouped by the
         # values that they are assigned to, and if anything looks fishy flag it
