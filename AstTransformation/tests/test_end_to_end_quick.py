@@ -18,8 +18,12 @@ def compute_value(item):
 """
 
         src = """
-processed_values = {compute_value(item):item for item in range(10) if item % 2 == 1}
+processed_values = {compute_value(item)+3:item for item in range(10) if item % 2 == 1}
 return ",".join(f"{key}:{value}" for key, value in processed_values.items())
+"""
+        src2 = """
+processed_values = compute_value(0)+3
+return processed_values
 """
 
         inputs = """

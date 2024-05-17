@@ -23,7 +23,7 @@ MyClass
 . . | notlocal
 . . | w #11
 . . | rw #17
-. . lambda
+. . Lambda
 . . . x
 . . . | r #13
 . . . | : #13
@@ -42,7 +42,6 @@ MyClass
 . . | notlocal
 . . | rw #21
 . other
-| r #26
 y
 | notlocal
 | w #10
@@ -52,6 +51,8 @@ obj
 | w #26
 | r #27
 | r #27
+MyClass
+| r #26
 func
 | w #27
 | r #28

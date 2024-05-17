@@ -1,9 +1,10 @@
+
 m
 | rw #2
 | r #29
 a
 | m #3
-| r #3
+| m #3
 | r #3
 | r #3
 | r #29
@@ -23,7 +24,7 @@ MyClass
 . . | notlocal
 . . | w #11
 . . | rw #17
-. . lambda
+. . Lambda
 . . . x
 . . . | r #13
 . . . | : #13

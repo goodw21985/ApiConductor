@@ -41,7 +41,15 @@ def walk(t, pre=""):
         suffix=""
         if v.is_set_unambiguously_across_if_blocks():
             suffix += " is_set_unambiguously_across_if_blocks"
-        print(f"{pre}{name}{suffix}")
+        if isinstance(name, str):
+            print(f"{pre}{name}{suffix}")
+        elif isinstance(name, ast.ClassDef):
+            print(f"{pre}{name.name}{suffix}")
+        elif isinstance(name, ast.FunctionDef):
+            print(f"{pre}{name.name}{suffix}")
+        else:
+            tname=type(name).__name__
+            print(f"{pre}{tname}{suffix}")
         if v.child:
             walk(v.child, pre + ". ")
         if v.redirect:
@@ -104,6 +112,8 @@ n
 | r #3
 search_email
 | r #4
+j
+| r #5
 t
 | r #6
 search_teams
@@ -136,6 +146,10 @@ range
 | r #4
 search_email
 | r #5
+j
+| r #6
+t
+| r #7
 search_teams
 | r #8"""
         self.check(source_code,expected)        
@@ -166,9 +180,15 @@ n
 | r #3
 search_email
 | r #4
+j
+| r #5
+t
+| r #6
 search_teams
 | r #7
-| r #9"""
+| r #9
+q
+| r #8"""
         self.check(source_code,expected)        
 ##############
     def test_simple(self):
@@ -251,7 +271,7 @@ MyClass
 . . | notlocal
 . . | w #11
 . . | rw #17
-. . lambda
+. . Lambda
 . . . x
 . . . | r #13
 . . . | : #13
@@ -270,7 +290,6 @@ MyClass
 . . | notlocal
 . . | rw #21
 . other
-| r #26
 y
 | notlocal
 | w #10
@@ -280,6 +299,8 @@ obj
 | w #26
 | r #27
 | r #27
+MyClass
+| r #26
 func
 | w #27
 | r #28

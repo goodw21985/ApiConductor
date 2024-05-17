@@ -9,7 +9,6 @@ from ast_transform import common
 class ScopeAnalyzer(ast.NodeTransformer):
     # any state that should persist between passes is copied during class construction using the copy construct in the __init__ function 
     def __init__(self, copy=None):
-        self.symbol_table_stack = None  # no symbol table stack exists before VariablesAnalyzer is being or has been run
         self.symbol_table = None
         self.node_stack = []
         self.if_stack = []
@@ -17,14 +16,11 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.current_node_stack = []
         self.current_if_stack = []
         self.scope_broadened = 0
-        self.class_symbols_stack = []
-        self.def_class_param_stack = []
         self.node_lookup = {}
         self.critical_nodes = None
         self.critical_node_names = None
         self.non_concurrent_critical_nodes = None
         self.critical_nodes_if_groups = None        
-        self.have_symbol_table = False
         self.global_return_statement = None
         self.tracking = None
         self.in_condition_expr=False
@@ -64,19 +60,14 @@ class ScopeAnalyzer(ast.NodeTransformer):
             pass
         else:
             self.config = copy.config
-            self.have_symbol_table = copy.have_symbol_table
             self.global_return_statement = copy.global_return_statement
             self.symbol_table = copy.symbol_table
-            self.have_symbol_table = copy.symbol_table is not None
-            self.symbol_table_stack = [self.symbol_table]
             self.node_stack = []
             self.if_stack = []
             self.if_lookup = copy.if_lookup
             self.current_node_stack = []
             self.current_if_stack = []
             self.scope_broadened = 0
-            self.class_symbols_stack = []
-            self.def_class_param_stack = []
             self.critical_nodes = copy.critical_nodes
             self.aggregated=copy.aggregated
             self.non_concurrent_critical_nodes = copy.non_concurrent_critical_nodes
@@ -96,11 +87,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
     def skip_visit(self, node):
         self.node_stack.append(node)
         self.current_node_stack = self.node_stack[:]
-        if node not in self.node_lookup:
-            self.current_node_lookup = common.NodeCrossReference(self.current_node_stack,self.current_if_stack)
-            self.node_lookup[node] = self.current_node_lookup
-        else:
-            self.current_node_lookup = self.node_lookup[node]
+        self.visit_pre(node)
         if isinstance(node, ast.Name):
             self.skip_visit_Name(node)
         else:
@@ -110,11 +97,8 @@ class ScopeAnalyzer(ast.NodeTransformer):
     def visit(self, node):
         self.node_stack.append(node)
         self.current_node_stack = self.node_stack[:]
-        if node not in self.node_lookup:
-            self.current_node_lookup = common.NodeCrossReference(self.current_node_stack, self.current_if_stack)
-            self.node_lookup[node] = self.current_node_lookup
-        else:
-            self.current_node_lookup = self.node_lookup[node]
+        self.visit_pre(node)
+
         # returns True if following should stop here
         if self.track_dependency(node):
             ret = node
@@ -123,6 +107,9 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.node_stack.pop()
         return ret
 
+    def visit_pre(self, node):
+        self.current_node_lookup = self.node_lookup[node]
+        
     def track_dependency(self, node):
         return False
 
@@ -148,20 +135,25 @@ class ScopeAnalyzer(ast.NodeTransformer):
         return node
 
     def visit_FunctionDef(self, node):
-        classParam = self.GetClassParameterName()
-        self.def_class_param_stack.append(classParam)
+        self.push_def_class_param_stack()
 
         # Enter a new scope (function)
 
-        self.push_symbol_table_stack(node.name)
+        self.push_symbol_table_stack(node)
         ret = self.visit_FunctionDef2(node)
         self.generic_visit(node)
 
         # Exit the scope (function)
 
         self.pop_symbol_table_stack()
-        self.def_class_param_stack.pop()
+        self.pop_def_class_param_stack()
         return ret
+
+    def push_def_class_param_stack(self):
+        pass
+            
+    def pop_def_class_param_stack(self):
+        pass
 
     def visit_FunctionDef2(self, node):
         return node
@@ -183,9 +175,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.generic_visit(node)
 
     def skip_visit_Name(self, node):
-        self.current_node_lookup.symbol = self.get_variable_reference(
-            node.id, self.current_node_stack
-        )
+        pass
 
     def visit_If(self, node):
         if node in self.if_lookup:
@@ -196,7 +186,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         for i in range(len(current_if_frame.bodies)):
             self.if_stack.append(current_if_frame.blockframes[i])
             self.current_if_stack = self.if_stack[:]
-            if i<len(current_if_frame.bodies)-1:
+            if i<len(current_if_frame.conditions):
                 self.in_condition_expr = True
                 self.mutating_condition_expr=False
                 self.visit(current_if_frame.conditions[i])
@@ -213,12 +203,6 @@ class ScopeAnalyzer(ast.NodeTransformer):
         return node
         
     def visit_Name(self, node):
-        if self.have_symbol_table:
-            if not self.IgnoreSymbol(node):
-                self.current_node_lookup.symbol = self.get_variable_reference(
-                    node.id, self.current_node_stack
-                )
-
         ret = self.visit_Name2(node)
         self.generic_visit(node)
         return ret
@@ -235,14 +219,6 @@ class ScopeAnalyzer(ast.NodeTransformer):
         return node
 
     def visit_arg(self, node):
-        if self.have_symbol_table:
-            if (
-                not self.def_class_param_stack
-                or self.def_class_param_stack[-1] != node.arg
-            ):
-                self.current_node_lookup.symbol = self.get_variable_reference(
-                    node.arg, self.current_node_stack
-                )
         ret = self.visit_arg2(node)
         self.generic_visit(node)
         return ret
@@ -251,16 +227,6 @@ class ScopeAnalyzer(ast.NodeTransformer):
         return node
 
     def visit_Attribute(self, node):
-        if self.have_symbol_table:
-            (name, isClass, _) = self.GetVariableContext()
-            if isClass:
-                self.current_node_lookup.symbol = self.get_class_variable_reference(
-                    name, self.current_node_stack
-                )
-            else:
-                self.current_node_lookup.symbol = self.get_variable_reference(
-                    name, self.current_node_stack
-                )
         ret = self.visit_Attribute2(node)
         self.generic_visit(node)
         return ret
@@ -269,28 +235,22 @@ class ScopeAnalyzer(ast.NodeTransformer):
         return node
 
     def visit_ClassDef(self, node):
-        self.push_symbol_table_stack(node.name)
-        self.class_symbols_stack.append(self.symbol_table)
+        self.push_symbol_table_stack(node)
+        self.push_class_symbol_stack()
+
         self.generic_visit(node)
         self.pop_symbol_table_stack()
-        self.class_symbols_stack.pop()
+        self.pop_class_symbol_stack()
         return node
 
-    def lookups_symbols(self, node):
-        if isinstance(node, ast.Tuple):
-            for target in node.elts:
-                self.lookups_symbols(target)
-        else:
-            self.node_lookup[node].symbol = self.get_variable_reference(
-                node, self.current_node_stack
-            )
-
+    def pop_class_symbol_stack(self):
+        pass
+        
+    def push_class_symbol_stack(self):
+        pass
+         
     def visit_GeneratorExp(self, node):
-        self.push_symbol_table_stack("generatorExp")
-        if self.have_symbol_table:
-            for generator in node.generators:
-                self.lookups_symbols(generator.target)      
-
+        self.push_symbol_table_stack(node)
         self.scope_broadened += 1
         ret = self.visit_GeneratorExp2(node)
 
@@ -306,10 +266,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         return node
         
     def visit_DictComp(self, node):
-        self.push_symbol_table_stack("dictComp")
-        if self.have_symbol_table:
-            for generator in node.generators:
-                self.lookups_symbols(generator.target)      
+        self.push_symbol_table_stack(node)
         self.scope_broadened += 1
         ret = self.visit_DictComp2(node)
 
@@ -326,10 +283,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         return node
         
     def visit_SetComp(self, node):
-        self.push_symbol_table_stack("setComp")
-        if self.have_symbol_table:
-            for generator in node.generators:
-                self.lookups_symbols(generator.target)      
+        self.push_symbol_table_stack(node)
         self.scope_broadened += 1
 
         ret = self.visit_SetComp2(node)
@@ -346,10 +300,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         return node
         
     def visit_ListComp(self, node):
-        self.push_symbol_table_stack("listComp")
-        if self.have_symbol_table:
-            for generator in node.generators:
-                self.lookups_symbols(generator.target)      
+        self.push_symbol_table_stack(node)
         self.scope_broadened += 1
         ret = self.visit_ListComp2(node)
 
@@ -366,12 +317,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
         
 
     def visit_Lambda(self, node):
-        self.push_symbol_table_stack("lambda")
-        if self.have_symbol_table:
-            for arg in node.args.args:
-                self.node_lookup[node].symbol = self.get_variable_reference(
-                    arg.arg, self.current_node_stack
-                )
+        self.push_symbol_table_stack(node)
         ret = self.visit_Lambda2(node)
 
         self.scope_broadened += 1
@@ -387,45 +333,12 @@ class ScopeAnalyzer(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
-    def push_symbol_table_stack(self, name):
-        if self.symbol_table_stack is not None:
-            self.symbol_table = self.symbol_table[name].child
-            self.symbol_table_stack.append(self.symbol_table)
-
+    def push_symbol_table_stack(self, node):
+        pass
+    
     def pop_symbol_table_stack(self):
-        if self.symbol_table_stack is not None:
-            self.symbol_table_stack.pop()
-            self.symbol_table = self.symbol_table_stack[-1]
+        pass
 
-    def find_symbol(self, key):
-        sym = self.find_frame(key)[key]
-        while self.Redirect in sym:
-            sym = sym[self.Redirect][key]
-        return sym
-
-    def find_frame(self, key):
-        latest_object_with_key = None
-        for obj in reversed(self.symbol_table_stack):
-            if key in obj:
-                latest_object_with_key = obj
-                break
-
-            # only lambdas can implicitly get scope broadened
-            if self.scope_broadened == 0:
-                break
-        if latest_object_with_key is not None:
-            return latest_object_with_key
-        else:
-            return self.symbol_table_stack[-1] if self.symbol_table_stack else None
-
-    def IgnoreSymbol(self, node):
-        if self.def_class_param_stack and self.def_class_param_stack[-1] == node.id:
-            return True
-        if isinstance(node.ctx, ast.Load):
-            parent = self.current_node_stack[-2]
-            if parent and isinstance(parent, ast.FunctionDef):
-                return True
-        return False
 
     def Redirect(self, key, value):
         pass
@@ -456,13 +369,6 @@ class ScopeAnalyzer(ast.NodeTransformer):
                     return True
         return False
 
-    def GetClassParameterName(self):
-        functionDef = self.current_node_stack[-1]
-        if self.IsClassFunction():
-            return functionDef.args.args[0].arg
-        else:
-            return None
-
     def get_variable_reference(self, key, value):
         if key==None:
             return self.null_symbol_table_entry
@@ -475,43 +381,12 @@ class ScopeAnalyzer(ast.NodeTransformer):
             item = sub[key]
         return item
 
-    def get_class_variable_reference(self, key, value):
-        if self.have_symbol_table:
-            return None
-        dictionary = self.find_frame(key)
-        item = dictionary[key]
-        return item
-
-    # returns a tuple with the (variable name, is a class variable (i.e. self.x), has other attributes (i.e.x.y.x))
-    def GetVariableContext(self):
-        list = []
-        for item in self.current_node_stack[::-1]:
-            if isinstance(item, ast.Attribute):
-                list.insert(0, item.attr)
-                last = item
-            else:
-                break
-        if isinstance(last.value, ast.Name):
-            list.insert(0, last.value.id)
-            if len(list) == 1:
-                return (list[-1], False, False)
-            if not self.def_class_param_stack:
-                selfVal = None
-            else:
-                selfVal = self.def_class_param_stack[-1]
-            if selfVal == list[0]:
-                if len(list) == 2:
-                    return (list[-1], True, False)
-                else:
-                    return (list[0], True, True)
-            else:
-                if len(list) == 1:
-                    return (list[-1], False, False)
-                else:
-                    return (list[0], False, True)
-        else:
-            # ','.join(f'x' for ...)
-            return (None, False, True)
+    #def get_class_variable_reference(self, key, value):
+    #    if self.have_symbol_table:
+    #        return None
+    #    dictionary = self.find_frame(key)
+    #    item = dictionary[key]
+    #    return item
 
     def Log(self, node, msg=None):
         if not self.config.log:
