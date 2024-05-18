@@ -183,7 +183,7 @@ orchestrator.Return(_program(orchestrator))"""
         self.check(source_code, None, expected)
    ###################
         
-    def check(self, code, validate, expected=None):
+    def check(self, code, validate, expected=None): 
         tree = ast.parse(code)
         if config.wrap_in_function_def:
             tree.body = tree.body[0].body
