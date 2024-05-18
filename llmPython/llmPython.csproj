@@ -8,14 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="lib\ast_transform\astor\__pycache__\**" />
-    <Compile Remove="lib\ast_transform\__pycache__\**" />
     <Compile Remove="lib\__pycache__\**" />
-    <EmbeddedResource Remove="lib\ast_transform\astor\__pycache__\**" />
-    <EmbeddedResource Remove="lib\ast_transform\__pycache__\**" />
     <EmbeddedResource Remove="lib\__pycache__\**" />
-    <None Remove="lib\ast_transform\astor\__pycache__\**" />
-    <None Remove="lib\ast_transform\__pycache__\**" />
     <None Remove="lib\__pycache__\**" />
   </ItemGroup>
 
@@ -25,46 +19,49 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="lib\ast_transform\astor\codegen.py">
+    <None Update="lib\ast_transform\astor_fork\codegen.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="lib\ast_transform\astor\code_gen.py">
+    <None Update="lib\ast_transform\astor_fork\code_gen - Copy.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="lib\ast_transform\astor\file_util.py">
+    <None Update="lib\ast_transform\astor_fork\code_gen.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="lib\ast_transform\astor\node_util.py">
+    <None Update="lib\ast_transform\astor_fork\file_util.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="lib\ast_transform\astor\op_util.py">
+    <None Update="lib\ast_transform\astor_fork\node_util.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="lib\ast_transform\astor\rtrip.py">
+    <None Update="lib\ast_transform\astor_fork\op_util.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="lib\ast_transform\astor\source_repr.py">
+    <None Update="lib\ast_transform\astor_fork\rtrip.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="lib\ast_transform\astor\string_repr.py">
+    <None Update="lib\ast_transform\astor_fork\source_repr.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="lib\ast_transform\astor\tree_walk.py">
+    <None Update="lib\ast_transform\astor_fork\string_repr.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="lib\ast_transform\astor\__init__.py">
+    <None Update="lib\ast_transform\astor_fork\tree_walk.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="lib\ast_transform\astor_fork\__init__.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="lib\ast_transform\code_verification.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="lib\ast_transform\common.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="lib\ast_transform\dependency_analyzer.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="lib\ast_transform\dispatch.py">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="lib\ast_transform\null_analyzer.py">
+    <None Update="lib\ast_transform\mock_framework.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="lib\ast_transform\orchestrator.py">
@@ -76,13 +73,13 @@
     <None Update="lib\ast_transform\safety.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="lib\ast_transform\safetyold.py">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Update="lib\ast_transform\scope_analyzer.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="lib\ast_transform\splitter_analyzer.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="lib\ast_transform\test_orchestrator.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="lib\ast_transform\transform.py">

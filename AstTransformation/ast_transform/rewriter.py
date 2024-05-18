@@ -376,7 +376,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         result = self.generic_visit(node)
 
         # get rid of assignments of None to if group variable assignements
-        if common.is_constant(node.value) and node.value.value==None:
+        if common.is_constant_none(node.value):
             targets=[]
             targets_changed = False
             for target in node.targets:
