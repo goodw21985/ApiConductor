@@ -59,6 +59,8 @@ class ApiConductorServer:
         with self.lock:
             send1 =  websocket.send(json.dumps(request))
             conversation.waiting.append(send1)
+        await send1
+        print ("sent**********")
         orchestror = orchestrator.Orchestrator(self, conversation_id)
                 
         globals_dict = {'orchestrator': orchestror}
@@ -72,8 +74,7 @@ class ApiConductorServer:
                 send1 =  websocket.send(json.dumps(request))
                 conversation.waiting.append(send1)
 
-            sende = conversation.websocket.send(request)
-            conversation.waiting.append(sende)
+            await send1
             print("******")
             print(request)
         
@@ -105,6 +106,7 @@ class ApiConductorServer:
         with self.lock:
             task= conversation.websocket.send(request)
             conversation.waiting.append(task)
+        await task
         print("******")
         print(request)
         

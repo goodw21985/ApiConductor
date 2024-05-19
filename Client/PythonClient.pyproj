@@ -23,6 +23,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Client llm.py" />
     <Compile Include="Client.py" />
   </ItemGroup>
   <ItemGroup>

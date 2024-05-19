@@ -1,14 +1,15 @@
-import asyncio
 import threading
-import websockets
+from xml.etree.ElementTree import QName
+import websocket
 import json
-import uuid
 import time
+import asyncio
+import uuid
 
 class Action:
     def __init__(self, ev, value):
-        self.ev=ev
-        self.value=value
+        self.ev = ev
+        self.value = value
 
 class Conversation:
     def __init__(self, client, code):
@@ -16,110 +17,109 @@ class Conversation:
         self._queue = asyncio.Queue()
         self._done = False
 
-        self.client=client
+        self.client = client
         self.conversation_id = str(uuid.uuid4())  # Generate a random GUID       
-        self.code=code
+        self.code = code
 
-    def set_event(self, value):
+    def enqueue(self, value):
         self._queue.put_nowait(value)
         self._event.set()
 
-    async def dispatch(self):
+    async def dispatch_async(self):
         self._event.set()
         while not self._done or not self._queue.empty():
-            await self._event.wait()  # Wait until the event is set
+            await self._event.wait()
+
             while not self._queue.empty():
                 value = await self._queue.get()
                 yield value
                 self._queue.task_done()
-            self._event.clear()  # Clear the event for the next iteration
+            self._event.clear()
+
+    def dispatch(self):
+        coroutine = self.dispatch_async()
+        while True:
+            future = asyncio.run_coroutine_threadsafe(coroutine.__anext__(), self.client.loop)
+            try:
+                result = future.result()
+                yield result  # Yield the result to the caller
+            except StopAsyncIteration:
+                break
 
     def stop(self):
         self._done = True
-        self._event.set()  # Ensure the loop in dispatch can exit
-
+        self._event.set()
 
     def complete(self, action_id, result):
         message = {
             "conversation_id": self.conversation_id,
             "action_id": action_id,
             "result": result
-            }
-
+        }
         asyncio.run_coroutine_threadsafe(self.client.send_message(message), self.client.loop)
-    
-class ApiConductorClient:
-    def __init__(self, uri="ws://localhost:8765"):
-        self.conversations={}
+
+
+class WebSocketClient:
+    def __init__(self, uri):
+        self.conversations = {}
         self.uri = uri
+        self.ws = None
+        self.thread = threading.Thread(target=self.run)
+        self.thread.daemon = True
+        self.ready_event = threading.Event()
         self.loop = asyncio.get_event_loop()
-        self.websocket = None
-        self.loop.run_until_complete(self.connect())
-        self.thread = threading.Thread(target=self.start_event_loop)
+
+    def on_message(self, ws, message):
+        response_data = json.loads(message)
+        print(f"Received: {response_data}")
+        conversation_id = response_data["conversation_id"]
+        if conversation_id in self.conversations:
+            conversation = self.conversations[conversation_id]
+            if "new_code" in response_data:
+                conversation.enqueue(Action("new_code", response_data["new_code"]))
+            else:
+                pass
+            
+    def on_error(self, ws, error):
+        print(f"Error: {error}")
+
+    def on_close(self, ws, close_status_code, close_msg):
+        print("Connection closed")
+
+    def on_open(self, ws):
+        print("ws open")
+        self.ready_event.set()
+
+    def run(self):
+        self.ws = websocket.WebSocketApp(self.uri,
+                                         on_message=self.on_message,
+                                         on_error=self.on_error,
+                                         on_close=self.on_close,
+                                         on_open=self.on_open)
+        self.ws.run_forever()
+
+    def start(self):
         self.thread.start()
-        
-    def start_event_loop(self):
-        asyncio.set_event_loop(self.loop)
-        self.loop.run_forever()
 
-    async def connect(self):
-        self.websocket = await websockets.connect(self.uri)
-        print(f"Connected to {self.uri}")
-        # Start the listening task
-        self.loop.create_task(self.listen())
-
-    async def listen(self):
-        async for message in self.websocket:
-            response_data = json.loads(message)
-            print(f"Received: {response_data}")
-            print("----")
-            conversation_id = response_data["conversation_id"]
-            if conversation_id in self.conversations:
-                conversation = self.conversations[conversation_id]
-                if "new_code" in response_data:
-                    conversation.set_event(Action("new_code",response_data["new_code"]))
-    
-    async def send_message(self, message):
-        await self.websocket.send(json.dumps(message))
-        print(f"Sent: {message}")
-
-    def start_conversation(self, code):
+    def send_message(self, code):
         conversation = Conversation(self, code)
-        conversation.client = self
-        self.conversations[conversation.conversation_id]=conversation
-        
+        self.conversations[conversation.conversation_id] = conversation
         message = {
             "conversation_id": conversation.conversation_id,
             "code": conversation.code
         }
-
-        asyncio.run_coroutine_threadsafe(self.send_message(message), self.loop)
-        print(f"Started conversation with ID: {conversation.conversation_id}")
-        
+        self.ready_event.wait()  # Wait until the connection is open
+        self.ws.send(json.dumps(message))
+        print("ws send")
         return conversation
 
-    def stop(self):
-        self.loop.call_soon_threadsafe(self.loop.stop)
-        self.thread.join()
+# Usage
+uri = "ws://localhost:8765"
+client = WebSocketClient(uri)
+client.start()
 
-async def consume(conversation):
-    async for action in conversation.dispatch():
-        print("*******")
-        print(f"Consumed action: {action.ev}, value: {action.value}")
-        print("*******")
-    
-async def process_conversation(client, src):
-    conversation = client.start_conversation(src)
-    consumer_task = asyncio.create_task(consume(conversation))
-    try:
-        await asyncio.wait_for(consumer_task, timeout=10)  # specify your desired timeout in seconds
-    except asyncio.TimeoutError:
-        print("The consumer task timed out")    
-        # await consumer_task
-
-if __name__ == '__main__':
-    client = ApiConductorClient()
-    src = """
+# Send a message
+src = """
 x=0
 a=search_email(x)
 if (a<3):
@@ -128,8 +128,12 @@ else:
     y=search_email(a+10)
 return y
 """
-    asyncio.run(process_conversation(client,src))
+conversation = client.send_message(src)
+for action in conversation.dispatch():
+        print("*******")
+        print(f"Consumed action: {action.ev}, value: {action.value}")
+        print("*******")
 
-    asyncio.sleep(5)
-    client.stop()
-
+# Keep the main thread running
+while True:
+    pass
