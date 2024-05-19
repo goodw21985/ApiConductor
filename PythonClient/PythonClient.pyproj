@@ -5,7 +5,7 @@
     <ProjectGuid>4b952b54-b2bd-4b90-b3ca-aa83d74c78ec</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>Client.py</StartupFile>
+    <StartupFile>MyClient.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -23,8 +23,8 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Client llm.py" />
-    <Compile Include="Client.py" />
+    <Compile Include="api_conductor_client.py" />
+    <Compile Include="MyClient.py" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="MSBuild|env|C:\repos\ApiConductor\AstTransformation\AstTransformation.pyproj" />

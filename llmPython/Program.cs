@@ -35,7 +35,7 @@ from ast_transform import code_verification
 tree = ast.parse(code)
 
 config = common.Config()
-config.awaitable_functions= [""search_email"", ""search_teams"",""search_meetings""]
+config.awaitable_functions= {""search_email"":[], ""search_teams"":[],""search_meetings"":[]}
 config.module_blacklist=None
 config.wrap_in_function_def =False
 tree = ast.parse(code)

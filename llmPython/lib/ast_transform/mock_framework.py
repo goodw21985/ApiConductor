@@ -13,7 +13,7 @@ class Mock():
 
     def __init__(self, library, target, inputs):
 
-        self.awaitable_functions=[]
+        self.awaitable_functions={}
 
         self.inputs_code = inputs
         self.inputs_ast = ast.parse(self.inputs_code).body
@@ -157,7 +157,7 @@ class Mock():
     def build_awaitable_functions_class(self):
         function_defs=[]
         for defn in self.library_ast.body:         
-            self.awaitable_functions.append(defn.name)
+            self.awaitable_functions[defn.name]=[]
             # def search_email(a=0, b=0):
             # return str(a)+ "1"
             # =>

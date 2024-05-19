@@ -12,7 +12,7 @@ from unittest.mock import patch
 import io
 
 config = common.Config()
-config.awaitable_functions = ["search_email", "search_teams", "search_meetings"]
+config.awaitable_functions = {"search_email":[], "search_teams":[], "search_meetings":[]}
 config.module_blacklist = None
 
 

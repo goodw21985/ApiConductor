@@ -199,18 +199,19 @@ def is_constant(node):
 def is_constant_none(node):
     if sys.version_info >= (3, 9):
         if isinstance(node, ast.Constant):
-            return node.value.value==None
+            return node.value==None
     else:
         if isinstance(node, ast.NameConstant):
-            return node.value.value==None
+            return node.value==None
     return False
 
 class Config:
     def __init__(self):
         self.wrap_in_function_def = False
-        self.awaitable_functions = []
+        self.awaitable_functions = {}
         self.module_blacklist = None
         self.log = False
+        self.single_function=False  
 
 class IfFrame:
     def __init__(self, node, if_stack):

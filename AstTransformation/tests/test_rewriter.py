@@ -14,7 +14,7 @@ from unittest.mock import patch
 import io
 
 config = common.Config()
-config.awaitable_functions = ["search_email", "search_teams", "search_meetings", "create_dict", "wrap_string"]
+config.awaitable_functions = {"search_email":[], "search_teams":[], "search_meetings":[], "create_dict":[], "wrap_string":[]}
 config.module_blacklist=None
 config.use_async=False
 config.wrap_in_function_def =True

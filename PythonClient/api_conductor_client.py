@@ -1,5 +1,4 @@
 import threading
-from xml.etree.ElementTree import QName
 import websocket
 import json
 import time
@@ -20,12 +19,39 @@ class Conversation:
         self.client = client
         self.conversation_id = str(uuid.uuid4())  # Generate a random GUID       
         self.code = code
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self.run())
 
+    async def run(self):
+        self.client.send_message(self)
+        async for action in self.dispatch():
+            if action.ev == "new_code":
+                self.on_new_code(action.value)
+            elif action.ev == "call":
+                self.on_call(action.value)
+            elif action.ev == "exception":
+                self.on_exception(action.value)
+            else:
+                raise ValueError
+        self.on_complete()
+        
+    def on_new_code(self,value):
+        print("on new code: "+value)        
+    
+    def on_call(self,value):
+        print("on call: "+value)        
+    
+    def on_complete(self):
+        print("on complete ")        
+    
     def enqueue(self, value):
+        future = asyncio.run_coroutine_threadsafe(self._enqueue(value), self.client.loop)
+        
+    async def _enqueue(self, value):
         self._queue.put_nowait(value)
         self._event.set()
 
-    async def dispatch_async(self):
+    async def dispatch_safe(self):
         self._event.set()
         while not self._done or not self._queue.empty():
             await self._event.wait()
@@ -35,13 +61,16 @@ class Conversation:
                 yield value
                 self._queue.task_done()
             self._event.clear()
-
-    def dispatch(self):
-        coroutine = self.dispatch_async()
+            # double check for race condition
+            if not self._queue.empty():
+               self._event.set()
+    
+    async def dispatch(self):
+        coroutine = self.dispatch_safe()
         while True:
             future = asyncio.run_coroutine_threadsafe(coroutine.__anext__(), self.client.loop)
             try:
-                result = future.result()
+                result = await asyncio.wrap_future(future)
                 yield result  # Yield the result to the caller
             except StopAsyncIteration:
                 break
@@ -59,25 +88,31 @@ class Conversation:
         asyncio.run_coroutine_threadsafe(self.client.send_message(message), self.client.loop)
 
 
-class WebSocketClient:
-    def __init__(self, uri):
+class ApiConductorClient:
+    def __init__(self, config, uri="ws://localhost:8765"):
         self.conversations = {}
         self.uri = uri
         self.ws = None
+        self.config = config
         self.thread = threading.Thread(target=self.run)
         self.thread.daemon = True
         self.ready_event = threading.Event()
         self.loop = asyncio.get_event_loop()
+        self.thread.start()
 
     def on_message(self, ws, message):
         response_data = json.loads(message)
-        print(f"Received: {response_data}")
         conversation_id = response_data["conversation_id"]
         if conversation_id in self.conversations:
             conversation = self.conversations[conversation_id]
             if "new_code" in response_data:
                 conversation.enqueue(Action("new_code", response_data["new_code"]))
+            elif "exception" in response_data:
+                conversation.enqueue(Action("exception", response_data["exception"]))
+            elif "call" in response_data:
+                conversation.enqueue(Action("call", response_data["call"]))
             else:
+                raise ValueError
                 pass
             
     def on_error(self, ws, error):
@@ -88,6 +123,7 @@ class WebSocketClient:
 
     def on_open(self, ws):
         print("ws open")
+        self.ws.send(json.dumps(self.config))
         self.ready_event.set()
 
     def run(self):
@@ -96,13 +132,10 @@ class WebSocketClient:
                                          on_error=self.on_error,
                                          on_close=self.on_close,
                                          on_open=self.on_open)
+
         self.ws.run_forever()
 
-    def start(self):
-        self.thread.start()
-
-    def send_message(self, code):
-        conversation = Conversation(self, code)
+    def send_message(self, conversation):
         self.conversations[conversation.conversation_id] = conversation
         message = {
             "conversation_id": conversation.conversation_id,
@@ -110,16 +143,14 @@ class WebSocketClient:
         }
         self.ready_event.wait()  # Wait until the connection is open
         self.ws.send(json.dumps(message))
-        print("ws send")
-        return conversation
 
-# Usage
-uri = "ws://localhost:8765"
-client = WebSocketClient(uri)
-client.start()
+if __name__ == '__main__':
+    
+    uri = "ws://localhost:8765"
+    client = ApiConductorClient(uri)
 
-# Send a message
-src = """
+    # Send a message
+    src = """
 x=0
 a=search_email(x)
 if (a<3):
@@ -128,12 +159,13 @@ else:
     y=search_email(a+10)
 return y
 """
-conversation = client.send_message(src)
-for action in conversation.dispatch():
-        print("*******")
-        print(f"Consumed action: {action.ev}, value: {action.value}")
-        print("*******")
+    conversation = Conversation(client, src)
+    client.send_message(conversation)
+    for action in conversation.dispatch():
+            print("*******")
+            print(f"Consumed action: {action.ev}, value: {action.value}")
+            print("*******")
 
-# Keep the main thread running
-while True:
-    pass
+    # Keep the main thread running
+    while True:
+        pass

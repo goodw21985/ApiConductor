@@ -40,7 +40,12 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
     RESULTNAME = "Result"
     TASKFUNCTION = "Task"
     TASKCLASS = "Task"
+    FUNCTIONNAME="_fn"
+    FUNCTIONCALL="_call"
     CALLID = "_id"
+    SERVER = "_server"
+    CONVERSATIONID = "_conversation_id"
+    
 
     def __init__(self, copy):
         self.pass_name = "rewriter"
@@ -201,9 +206,18 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         
         new_keywords.append(new_keyword)
 
+        caller = call_node.func.id
+        if self.config.single_function:
+            new_keyword2 = ast.keyword(
+                arg=self.FUNCTIONNAME, 
+                value=self.MakeString(call_node.func.id))
+            new_keywords.append(new_keyword2)
+            caller = self.FUNCTIONCALL
+        
+            
         function_call = ast.Attribute(
             value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
-            attr=call_node.func.id,
+            attr=caller,
             ctx=ast.Load(),
         )
 
@@ -269,9 +283,17 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         
             new_keywords.append(new_keyword)
             
-            function_call = ast.Attribute(
+            caller = node.func.id
+            if self.config.single_function:
+                new_keyword2 = ast.keyword(
+                    arg=self.FUNCTIONNAME, 
+                    value=self.MakeString(node.func.id))
+                new_keywords.append(new_keyword2)
+                caller = self.FUNCTIONCALL            
+                
+                function_call = ast.Attribute(
                 value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
-                attr=node.func.id,
+                attr=caller,
                 ctx=ast.Load(),
             )
 
@@ -297,9 +319,17 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         
         new_keywords.append(new_keyword)
 
+        caller = node.func.id
+        if self.config.single_function:
+            new_keyword2 = ast.keyword(
+                arg=self.FUNCTIONNAME, 
+                value=self.MakeString(node.func.id))
+            new_keywords.append(new_keyword2)
+            caller = self.FUNCTIONCALL
+        
         function_call = ast.Attribute(
             value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
-            attr=node.func.id,
+            attr=caller,
             ctx=ast.Load(),
         )
 
@@ -561,13 +591,18 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         # => orchestrator = orchestrator.Orchestrator()
         intantiated_class = ast.Name(id=self.ORCHESTRATOR, ctx=ast.Store())
 
+        args = []
+        if self.config.single_function:
+            args = [ast.Name(id=self.SERVER, ctx=ast.Load()), 
+                    ast.Name(id=self.CONVERSATIONID, ctx=ast.Load())]
+            
         instantiation = ast.Call(
             func=ast.Attribute(
                 value=ast.Name(id=self.ORCHESTRATORMODULE, ctx=ast.Load()),
                 attr=self.ORCHESTRATORCLASS,
                 ctx=ast.Load(),
             ),
-            args=[],
+            args=args,
             keywords=[],
         )
 
@@ -582,6 +617,13 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
             program,
             ast.Expr(call_return),
         ]
+        
+        if self.config.single_function:
+            module_statements = [
+                program,
+                ast.Expr(call_return),
+            ]
+
 
         if sys.version_info >= (3, 8):
             return ast.Module(body=module_statements, type_ignores=node.type_ignores)

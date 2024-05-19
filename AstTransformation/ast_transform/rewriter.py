@@ -291,7 +291,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 new_keywords.append(new_keyword2)
                 caller = self.FUNCTIONCALL            
                 
-                function_call = ast.Attribute(
+            function_call = ast.Attribute(
                 value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
                 attr=caller,
                 ctx=ast.Load(),

@@ -18,7 +18,7 @@ Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "AstTransformation", "AstTra
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "C# Orchestrator", "C# Orchestrator\C# Orchestrator.csproj", "{5F623DC0-81F7-4EEC-91E2-8ED5A5082537}"
 EndProject
-Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "PythonClient", "Client\PythonClient.pyproj", "{4B952B54-B2BD-4B90-B3CA-AA83D74C78EC}"
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "PythonClient", "PythonClient\PythonClient.pyproj", "{4B952B54-B2BD-4B90-B3CA-AA83D74C78EC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
