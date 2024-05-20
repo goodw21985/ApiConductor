@@ -28,7 +28,12 @@ class Conversation:
             if action.ev == "new_code":
                 self.on_new_code(action.value)
             elif action.ev == "call":
-                self.on_call(action.value)
+                result = self.on_call(action.value)
+                self.complete(result[0], result[1])
+            elif action.ev == "return":
+                self.on_return(action.value)
+            elif action.ev == "done":
+                self.on_done()
             elif action.ev == "exception":
                 self.on_exception(action.value)
             else:
@@ -41,9 +46,15 @@ class Conversation:
     def on_call(self,value):
         print("on call: "+value)        
     
+    def on_return(self,value):
+        print("on call: "+str(value))        
+    
+    def on_done(self,value):
+        print("on done: "+str(value))        
+    
     def on_complete(self):
         print("on complete ")        
-    
+        
     def enqueue(self, value):
         future = asyncio.run_coroutine_threadsafe(self._enqueue(value), self.client.loop)
         
@@ -85,7 +96,7 @@ class Conversation:
             "action_id": action_id,
             "result": result
         }
-        asyncio.run_coroutine_threadsafe(self.client.send_message(message), self.client.loop)
+        asyncio.run_coroutine_threadsafe(self.client.send_result_message(message), self.client.loop)
 
 
 class ApiConductorClient:
@@ -111,6 +122,10 @@ class ApiConductorClient:
                 conversation.enqueue(Action("exception", response_data["exception"]))
             elif "call" in response_data:
                 conversation.enqueue(Action("call", response_data["call"]))
+            elif "done" in response_data:
+                conversation.enqueue(Action("done", response_data["done"]))
+            elif "return" in response_data:
+                conversation.enqueue(Action("return", response_data["return"]))
             else:
                 raise ValueError
                 pass
@@ -142,6 +157,9 @@ class ApiConductorClient:
             "code": conversation.code
         }
         self.ready_event.wait()  # Wait until the connection is open
+        self.ws.send(json.dumps(message))
+
+    async def send_result_message(self, message):
         self.ws.send(json.dumps(message))
 
 if __name__ == '__main__':

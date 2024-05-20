@@ -17,6 +17,7 @@ class Conversation:
         self.conversation_id=conversation_id
         self.websocket=websocket
         self.code=code
+        self.globals_dict = None
 
 
 class ApiConductorServer:
@@ -66,6 +67,7 @@ class ApiConductorServer:
         orchestror = orchestrator.Orchestrator(self, conversation_id)
                 
         globals_dict = {'orchestrator': orchestror}
+        conversation.globals_dict=globals_dict
         err=await self.execute_with_timeout(conversation.new_code, globals_dict, self.time_out)
         if err != None:
             request = {
@@ -80,6 +82,14 @@ class ApiConductorServer:
             print("******")
                     
         print("********exec done*********")
+        
+        request = {
+                    "conversation_id": conversation_id,
+                    "done": None
+                }
+        
+        send2 =  websocket.send(json.dumps(request))
+        await send2
 
 
     def set_config(self, websocket, data):
@@ -92,6 +102,15 @@ class ApiConductorServer:
         config.single_function=True
         self.ws_config[websocket]=config
         
+    def complete(self, data):
+        conversation_id = data["conversation_id"]
+        action_id = data["action_id"]
+        result = data["result"]
+        conversation= self.conversations[conversation_id]
+        # modifying values being used by code that is running within exec() 
+        conversation.globals_dict["orchestrator"].call_completion(action_id,result)
+        
+
     async def message(self, websocket, path):
         self.loop = asyncio.get_running_loop()
         async for message in websocket:
@@ -101,6 +120,8 @@ class ApiConductorServer:
                  task = asyncio.create_task(self.run_code(data, websocket)) 
             elif "functions" in data:
                 self.set_config(websocket, data)
+            elif "action_id" in data:
+                self.complete(data)
             else:
                 pass
             
@@ -123,6 +144,17 @@ class ApiConductorServer:
                         new_parms[key]=parms[key]
                 return new_parms
         return parms 
+                
+    def _return(self, conversation_id, val):
+        conversation = self.conversations[conversation_id]
+        
+        request = {
+                    "conversation_id": conversation_id,
+                    "return": val
+                }
+        
+        future = asyncio.run_coroutine_threadsafe(conversation.websocket.send(json.dumps(request)), self.loop)
+        _= future.result()
         
     def _call(self, conversation_id, parms):
         conversation = self.conversations[conversation_id]

@@ -14,6 +14,7 @@ class Orchestrator:
         self.signal_queue = queue.Queue()
         self._private_queue={}
         self.created_id_map={}
+        self.future={}
         self.dag = None
         self.server = server
         self.conversation_id = conversation_id
@@ -48,7 +49,6 @@ class Orchestrator:
         return node
     
     def _completion(self, task, val):
-        time.sleep(.01)  # Wait for 10
         task.Result = val
         id = self._task_id[task]
         if id in self._private_queue:
@@ -56,6 +56,10 @@ class Orchestrator:
         else:
             self.signal_queue.put(task)
 
+    def call_completion(self, id, val):
+        task=self.future[id]
+        task.Result = val
+        self.signal_queue.put(id)
 
     def _is_awaitable(self, id):
         with self.lock:
@@ -97,11 +101,17 @@ class Orchestrator:
         for key, value in kwargs.items():
             parms[key]=value
 
+        _id = parms["_id"]
+        task = Task()
+        self.future[_id]=task
+        
         self.server._call(self.conversation_id, parms)
+        return task
 
 
     def Return(self, a):
-        print(a)
+        self._kill()
+        self.server._return(self.conversation_id, a)
 
     def _complete(self, task):
         self.signal_queue.put(task)
