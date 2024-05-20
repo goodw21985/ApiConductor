@@ -1,11 +1,11 @@
 from ast_transform import language_client
 import asyncio
 import time
+from threading import Thread, Event
 
 class MyConversation(language_client.Conversation):
     def __init__(self, client, code):
         super().__init__(client, code)
-        complete=False
         
     def on_new_code(self,value):
         print("on new code: "+value)        
@@ -21,7 +21,6 @@ class MyConversation(language_client.Conversation):
     
     def on_complete(self):
         print("on complete ")        
-        complete=True
     
     def on_call(self,value):
         _fn=value["_fn"]
@@ -53,16 +52,17 @@ class MyConversation(language_client.Conversation):
 
 
 if __name__ == '__main__':
-    config = {'functions':{
-        'search_email':['a','b','c'],
-        'search_teams':['a','b','c'],
-        'search_meetings':['a','b','c'],
-        'wrap_string':['a','b','c'],
-        }, 'module_blacklist':['io']}
+    async def main():
+        config = {'functions':{
+            'search_email':['a','b','c'],
+            'search_teams':['a','b','c'],
+            'search_meetings':['a','b','c'],
+            'wrap_string':['a','b','c'],
+            }, 'module_blacklist':['io']}
 
-    client = language_client.ApiConductorClient(config)
+        client = language_client.ApiConductorClient(config)
 
-    src = """
+        src = """
 x=1
 a=search_email(x)
 if (a<3):
@@ -71,9 +71,9 @@ else:
     y=search_email(a+10)
 return y
 """
-    conversation = MyConversation(client, src)
+        conversation = MyConversation(client, src)
+        await conversation.task
 
-    while not conversation.complete:
-        time.sleep(.1)  # Use time.sleep instead of asyncio.sleep in synchronous code
-
-    client.stop()
+        client.close()
+        
+    asyncio.run(main())
