@@ -1,2 +1,2 @@
-cd C:\repos\ApiConductor\PythonClient
+cd C:\repos\ApiConductor\AstTransformation
 python MyClient.py
