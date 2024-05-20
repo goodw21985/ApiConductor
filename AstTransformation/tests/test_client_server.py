@@ -1,64 +1,62 @@
-#  This is intended to be a unit test, but cannot seem to be be discovered
-#
 import unittest
-import ast
-import time
-from ast_transform import astor_fork
-from ast_transform import rewriter, splitter_analyzer, dependency_analyzer, variables_analyzer, language_client, language_server, common
 import asyncio
 from threading import Thread, Event
-import time
-
 import random
+from ast_transform import astor_fork
+from ast_transform import rewriter, splitter_analyzer, dependency_analyzer, variables_analyzer, language_client, language_server, common
 
-gport=random.randint(50000, 60000)
+gport = random.randint(50000, 60000)
 
 class AsyncTestCase(unittest.TestCase):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def setUp(self):
         self.server_ready_event = Event()
         config = common.Config()
-        config.awaitable_functions = {"search_email":[], "search_teams":[], "search_meetings":[], "create_dict":[], "wrap_string":[]}
+        config.awaitable_functions = {"search_email": [], "search_teams": [], "search_meetings": [], "create_dict": [], "wrap_string": []}
         config.module_blacklist = None
         config.wrap_in_function_def = False
         config.single_function = True
-        self.server = language_server.ApiConductorServer(config,gport)
+        self.server = language_server.ApiConductorServer(config, gport)
         self.server_thread = Thread(target=self.start_server)
         self.server_thread.start()
-        
-    def wait_server(self):
-        self.server_ready_event.wait()  # Wait until the server is ready
+        if not self.server_ready_event.wait(timeout=10):  # Timeout after 10 seconds
+            self.fail("Server did not start in time")
+
+    def tearDown(self):
+        #self.loop.call_soon_threadsafe(self.loop.stop)
+        #self.server_thread.join()
         pass
-    
+
     def start_server(self):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
-        asyncio.run(self.server_task())
+        self.loop.run_until_complete(self.server_task())
 
     async def server_task(self):
         await self.server.start()
         self.server_ready_event.set()  # Signal that the server is ready
-        await self.server.wait_for_close()
-             
+        try:
+            await self.server.wait_for_close()
+        except asyncio.CancelledError:
+            pass
 
 class TestConversation(language_client.Conversation):
     def __init__(self, client, code):
         super().__init__(client, code)
-        
+
     def on_new_code(self, value):
-        print("on new code: " + value)        
-    
+        print("on new code: " + value)
+
     def on_exception(self, value):
-        print("on exception: " + value)        
-    
+        print("on exception: " + value)
+
     def on_return(self, value):
         self.return_value = value
-        print("on return: " + str(value))        
-    
+        print("on return: " + str(value))
+
     def on_complete(self):
-        print("on complete")        
-    
+        print("on complete")
+
     def on_call(self, value):
         _fn = value["_fn"]
         _id = value["_id"]
@@ -74,27 +72,26 @@ class TestConversation(language_client.Conversation):
         elif _fn == "wrap_string":
             result = self.wrap_string(**value)
         return (_id, result)
-     
+
     def search_email(self, a=0, b=0, c=0):
         return a + 100
-    
+
     def search_teams(self, a=0, b=0, c=0):
         return a + 100
-    
+
     def search_meetings(self, a=0, b=0, c=0):
         return a + 100
-    
+
     def wrap_string(self, a=0, b=0, c=0):
         return a + 100
-    
+
 class TestClientServerModuleo(AsyncTestCase):
     def create_client(self, config):
-        client = language_client.ApiConductorClient(config, "ws://localhost:"+str(gport))
+        client = language_client.ApiConductorClient(config, "ws://localhost:" + str(gport))
         return client
-    
+
     def test_echo(self):
         async def run_test():
-            self.wait_server()
             config = {
                 'functions': {
                     'search_email': ['a', 'b', 'c'],
@@ -115,11 +112,10 @@ else:
     y = search_email(a + 10)
 return y
 """
-
             conversation = TestConversation(self.client, src)
             await conversation.task
-            result = conversation.return_value  
-            self.assertEqual(result, 211)  
+            result = conversation.return_value
+            self.assertEqual(result, 211)
             self.client.close()
 
         asyncio.run(run_test())
