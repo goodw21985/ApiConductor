@@ -10,7 +10,7 @@ class TestMockModuleQuick(unittest.TestCase):
         self.assertEqual(m.capture2, m.capture1)
 
 #######################
-    def test_list_comprehension(self):
+    def test_list_comprehension2(self):
         lib = """
 def get_items(n):
     return range(n)

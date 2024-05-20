@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>346a99d3-62ae-4bde-8cd6-681338c2ab9a</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>server.py</StartupFile>
+    <StartupFile>tests\test_client_server.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -58,6 +58,7 @@
     <Compile Include="ast_transform\language_server.py" />
     <Compile Include="server.py" />
     <Compile Include="tests\temp.py" />
+    <Compile Include="tests\test_client_server.py" />
     <Compile Include="tests\test_dependency_analyzer.py" />
     <Compile Include="ast_transform\code_verification.py" />
     <Compile Include="tests\test_end_to_end.py" />
@@ -66,7 +67,6 @@
     <Compile Include="tests\test_end_to_end_quick.py" />
     <Compile Include="tests\test_quick_rewriter.py" />
     <Compile Include="tests\test_quick_splitter.py" />
-    <Compile Include="tests\test_client_server.py" />
     <Compile Include="tests\test_rewriter.py" />
     <Compile Include="tests\test_splitter_analyzer.py" />
     <Compile Include="tests\test_variables_analyzer.py" />
@@ -88,6 +88,9 @@
       <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>
       <Architecture>X64</Architecture>
     </Interpreter>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="requirements.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

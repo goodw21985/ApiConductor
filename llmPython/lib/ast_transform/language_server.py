@@ -14,9 +14,9 @@ import orchestrator
 import threading
 
 class Conversation:
-    def __init__(self, conversation_id, websocket, code):
+    def __init__(self, conversation_id, ws, code):
         self.conversation_id=conversation_id
-        self.websocket=websocket
+        self.ws=ws
         self.code=code
         self.globals_dict = None
 
@@ -63,21 +63,21 @@ class ApiConductorServer:
                     print("Execution timed out")
                     return type(e).__name__+": "+str(e)
                                 
-    async def run_code(self, data, websocket):
+    async def run_code(self, data, ws):
         conversation_id = data["conversation_id"]
         code = data["code"]
-        conversation = Conversation(conversation_id, websocket, code)
+        conversation = Conversation(conversation_id, ws, code)
         self.conversations[conversation_id]=conversation
         config = self.config
-        if websocket in self.ws_config:
-            config = self.ws_config[websocket]
+        if ws in self.ws_config:
+            config = self.ws_config[ws]
         new_tree = transform.Transform(config).modify_code(conversation.code)
         conversation.new_code = astor_fork.to_source(new_tree)
         request = {
             "conversation_id": conversation_id,
             "new_code": conversation.new_code
         }
-        send1 =  websocket.send(json.dumps(request))
+        send1 =  ws.send(json.dumps(request))
         await send1
         orchestror = orchestrator.Orchestrator(self, conversation_id)
                 
@@ -89,7 +89,7 @@ class ApiConductorServer:
                 "conversation_id": conversation_id,
                 "exception": err
             }
-            send1 =  websocket.send(json.dumps(request))
+            send1 =  ws.send(json.dumps(request))
             await send1
 
         request = {
@@ -98,11 +98,11 @@ class ApiConductorServer:
                 }
         
         del self.conversations[conversation_id]
-        send2 =  websocket.send(json.dumps(request))
+        send2 =  ws.send(json.dumps(request))
         await send2
 
 
-    def set_config(self, websocket, data):
+    def set_config(self, ws, data):
         config = common.Config()
         config.awaitable_functions = data["functions"]
         config.module_blacklist=None
@@ -110,7 +110,7 @@ class ApiConductorServer:
             config.module_blacklist=data["module_blacklist"]
         config.wrap_in_function_def =False
         config.single_function=True
-        self.ws_config[websocket]=config
+        self.ws_config[ws]=config
         
     def complete(self, data):
         conversation_id = data["conversation_id"]
@@ -121,14 +121,14 @@ class ApiConductorServer:
         conversation.globals_dict["orchestrator"].call_completion(action_id,result)
         
 
-    async def message(self, websocket, path):
+    async def message(self, ws, path):
         self.loop = asyncio.get_running_loop()
-        async for message in websocket:
+        async for message in ws:
             data = json.loads(message)
             if "code" in data:
-                 task = asyncio.create_task(self.run_code(data, websocket)) 
+                 task = asyncio.create_task(self.run_code(data, ws)) 
             elif "functions" in data:
-                self.set_config(websocket, data)
+                self.set_config(ws, data)
             elif "action_id" in data:
                 self.complete(data)
             else:
@@ -138,8 +138,8 @@ class ApiConductorServer:
     # if we know what they should be.
     # i.e. search(3,4,5,x=8) => search(a=3,b=4,c=5,x=8)        
     def fix_parms(self, parms, conversation):
-        if conversation.websocket in self.ws_config:
-            functions = self.ws_config[conversation.websocket].awaitable_functions
+        if conversation.ws in self.ws_config:
+            functions = self.ws_config[conversation.ws].awaitable_functions
             fn = parms[rewriter.Rewriter.FUNCTIONNAME]
             if fn in functions:
                 new_parms={}
@@ -160,7 +160,7 @@ class ApiConductorServer:
                     "return": val
                 }
         
-        future = asyncio.run_coroutine_threadsafe(conversation.websocket.send(json.dumps(request)), self.loop)
+        future = asyncio.run_coroutine_threadsafe(conversation.ws.send(json.dumps(request)), self.loop)
         _= future.result()
         
     def _call(self, conversation_id, parms):
@@ -171,6 +171,6 @@ class ApiConductorServer:
                     "call": self.fix_parms(parms, conversation)
                 }
         
-        future = asyncio.run_coroutine_threadsafe(conversation.websocket.send(json.dumps(request)), self.loop)
+        future = asyncio.run_coroutine_threadsafe(conversation.ws.send(json.dumps(request)), self.loop)
         _= future.result()
                 

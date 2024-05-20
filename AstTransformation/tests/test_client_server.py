@@ -1,3 +1,5 @@
+#  This is intended to be a unit test, but cannot seem to be be discovered
+#
 import unittest
 import ast
 import time
@@ -24,6 +26,8 @@ class AsyncTestCase(unittest.TestCase):
         self.server = language_server.ApiConductorServer(config,gport)
         self.server_thread = Thread(target=self.start_server)
         self.server_thread.start()
+        
+    def wait_server(self):
         self.server_ready_event.wait()  # Wait until the server is ready
         pass
     
@@ -83,13 +87,14 @@ class TestConversation(language_client.Conversation):
     def wrap_string(self, a=0, b=0, c=0):
         return a + 100
     
-class TestClientServerModule(AsyncTestCase):
+class TestClientServerModuleo(AsyncTestCase):
     def create_client(self, config):
         client = language_client.ApiConductorClient(config, "ws://localhost:"+str(gport))
         return client
     
     def test_echo(self):
         async def run_test():
+            self.wait_server()
             config = {
                 'functions': {
                     'search_email': ['a', 'b', 'c'],
