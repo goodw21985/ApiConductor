@@ -13,6 +13,7 @@ from ast_transform import common
 import orchestrator
 import threading
 
+
 class Conversation:
     def __init__(self, conversation_id, ws, code):
         self.conversation_id=conversation_id
@@ -45,27 +46,35 @@ class ApiConductorServer:
         if self.server != None:
             self.server.close()
         
-    def run_exec(self, code, globals_dict):
+    def run_exec(self, code, globals_dict, completion_event):
         asyncio.set_event_loop(self.loop)
         try:
             exec(code, globals_dict)
+            print( datetime.now().strftime("%Y-%m-%d %H:%M:%S"), end=': ')
+            print("exec completed")
             return None
         except Exception as e:
+            print( datetime.now().strftime("%Y-%m-%d %H:%M:%S"), end=': ')
+            print("exec exception")
             return type(e).__name__+": "+str(e)
+        finally:
+            completion_event.set()
 
     async def execute_with_timeout(self, code, globals_dict, timeout):
+            completion_event = threading.Event()    
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = self.loop.run_in_executor(executor, self.run_exec, code, globals_dict)
+                future = self.loop.run_in_executor(executor, self.run_exec, code, globals_dict, completion_event)
                 try:
                     return await asyncio.wait_for(future, timeout)
                 except asyncio.TimeoutError as e:
                     globals_dict["orchestrator"]._kill()
-                    print("Execution timed out")
+                    completion_event.wait()
                     return type(e).__name__+": "+str(e)
                                 
     async def run_code(self, data, ws):
         conversation_id = data["conversation_id"]
         code = data["code"]
+        
         conversation = Conversation(conversation_id, ws, code)
         self.conversations[conversation_id]=conversation
         config = self.config

@@ -7,6 +7,9 @@ class Task:
     def __init__(self):
         self.Result = None
         
+class StopExecution(Exception):
+    pass
+        
 class Orchestrator:
     def __init__(self, server, conversation_id):
         self._task_id = {}
@@ -18,10 +21,14 @@ class Orchestrator:
         self.dag = None
         self.server = server
         self.conversation_id = conversation_id
+        self._killed=False
        
     def _kill(self):
+        self._killed=True
         self.signal_queue.put(None)
         
+    def _stop(self):
+        self.signal_queue.put(None)
         
     def _create_task(self, result):
         task = Task()
@@ -110,7 +117,7 @@ class Orchestrator:
 
 
     def Return(self, a):
-        self._kill()
+        self._stop()
         self.server._return(self.conversation_id, a)
 
     def _complete(self, task):
@@ -164,6 +171,8 @@ class Orchestrator:
         while self._dispatch_actions():
             task = self.signal_queue.get()  # Wait for a signal
             if task==None:
+                if self._killed:
+                    raise StopExecution("program killed by server")
                 return
             elif isinstance(task, str):
                 self._update_dag(task)
