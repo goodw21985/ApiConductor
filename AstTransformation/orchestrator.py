@@ -21,10 +21,10 @@ class Orchestrator:
         self.dag = None
         self.server = server
         self.conversation_id = conversation_id
-        self._killed=False
+        self._killed_request=False
        
     def _kill(self):
-        self._killed=True
+        self._killed_request=True
         self.signal_queue.put(None)
         
     def _stop(self):
@@ -171,7 +171,7 @@ class Orchestrator:
         while self._dispatch_actions():
             task = self.signal_queue.get()  # Wait for a signal
             if task==None:
-                if self._killed:
+                if self._killed_request:
                     raise StopExecution("program killed by server")
                 return
             elif isinstance(task, str):

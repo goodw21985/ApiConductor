@@ -16,7 +16,7 @@ class AsyncTestCase(unittest.TestCase):
         config.module_blacklist = None
         config.wrap_in_function_def = False
         config.single_function = True
-        self.server = language_server.ApiConductorServer(config, gport)
+        self.server = language_server.ApiConductorServer(config, None, gport)
         self.server_thread = Thread(target=self.start_server)
         self.server_thread.start()
         if not self.server_ready_event.wait(timeout=10):  # Timeout after 10 seconds
