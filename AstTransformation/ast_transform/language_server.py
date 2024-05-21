@@ -66,6 +66,13 @@ class ApiConductorServer:
     async def run_code(self, data, ws):
         conversation_id = data["conversation_id"]
         code = data["code"]
+        
+        print()
+        print()
+        print(code)
+        print()
+        print()
+
         conversation = Conversation(conversation_id, ws, code)
         self.conversations[conversation_id]=conversation
         config = self.config
@@ -80,6 +87,13 @@ class ApiConductorServer:
         send1 =  ws.send(json.dumps(request))
         await send1
         orchestror = orchestrator.Orchestrator(self, conversation_id)
+
+        print()
+        print()
+        print( conversation.new_code)
+        print()
+        print()
+
                 
         globals_dict = {'orchestrator': orchestror}
         conversation.globals_dict=globals_dict
@@ -124,6 +138,7 @@ class ApiConductorServer:
     async def message(self, ws, path):
         self.loop = asyncio.get_running_loop()
         async for message in ws:
+            print(str(message))
             data = json.loads(message)
             if "code" in data:
                  task = asyncio.create_task(self.run_code(data, ws)) 
