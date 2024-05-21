@@ -49,9 +49,10 @@ class ApiConductorServer:
         await self.server.wait_closed()
 
     async def wait_for_close(self):
-        await self.server.wait_closed()
-        self.is_ready=False
-        self.logger.info(f"websockets stopped")
+        if self.server:
+            await self.server.wait_closed()
+            self.is_ready=False
+            self.logger.info(f"websockets stopped")
         
     def _create_default_logger(self):
         logger = logging.getLogger('ApiConductorServer')

@@ -1,7 +1,5 @@
 from ast_transform import language_client
-import asyncio
-import time
-from threading import Thread, Event
+
 
 class MyConversation(language_client.Conversation):
     def __init__(self, client, code):
@@ -22,45 +20,28 @@ class MyConversation(language_client.Conversation):
     def on_complete(self):
         print("on complete ")        
     
-    def on_call(self,value):
-        _fn=value["_fn"]
-        _id = value["_id"]
-        del value["_fn"]
-        del value["_id"]
-        result=None
-        if _fn == "search_email":
-            result = self.search_email(**value)
-        elif _fn == "search_teams":
-            result = self.search_teams(**value)
-        elif _fn == "search_meetings":
-            result = self.search_meetings(**value)
-        elif _fn == "wrap_string":
-            result = self.wrap_string(**value)
-        return (_id, result)
-     
+    @language_client.managed_function
     def search_email(self, a=0, b=0, c=0):
         return a+100
     
+    @language_client.managed_function
     def search_teams(self, a=0, b=0, c=0):
         return a+100
     
+    @language_client.managed_function
     def search_meetings(self, a=0, b=0, c=0):
         return a+100
     
+    @language_client.managed_function
     def wrap_string(self, a=0, b=0, c=0):
         return a+100
 
 
 if __name__ == '__main__':
     async def main():
-        config = {'functions':{
-            'search_email':['a','b','c'],
-            'search_teams':['a','b','c'],
-            'search_meetings':['a','b','c'],
-            'wrap_string':['a','b','c'],
-            }, 'module_blacklist':['io']}
+        config = {'module_blacklist':['io']}
 
-        client = language_client.ApiConductorClient(config)
+        client = language_client.ApiConductorClient(config, MyConversation)
 
         src = """
 x=1

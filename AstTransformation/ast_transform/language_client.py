@@ -4,6 +4,12 @@ import json
 import time
 import asyncio
 import uuid
+import inspect
+from typing import get_type_hints
+
+def managed_function(func):
+    func._is_managed = True
+    return func
 
 class Action:
     def __init__(self, ev, value):
@@ -44,7 +50,14 @@ class Conversation:
         print("on new code: "+value)        
     
     def on_call(self,value):
-        print("on call: "+value)        
+        _fn=value["_fn"]
+        _id = value["_id"]
+        del value["_fn"]
+        del value["_id"]
+        result = None
+        if _fn in self.client.function_lookup:
+            result = self.client.function_lookup[_fn](self, **value) 
+        return (_id, result)
     
     def on_return(self,value):
         print("on call: "+str(value))        
@@ -97,16 +110,29 @@ class Conversation:
 
 
 class ApiConductorClient:
-    def __init__(self, config, uri="ws://localhost:8765"):
+    def __init__(self, config, conv_cls, uri="ws://localhost:8765"):
         self.conversations = {}
         self.uri = uri
         self.ws = None
         self.config = config
+        self.function_lookup={}
+        self.build_function_table(conv_cls)
         self.thread = threading.Thread(target=self.run)
         self.thread.daemon = True
         self.ready_event = threading.Event()
         self.loop = asyncio.get_event_loop()
         self.thread.start()
+        
+    def build_function_table(self, cls):
+        function_list = {}
+        for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
+            if hasattr(method, "_is_managed") and method._is_managed:
+                signature = inspect.signature(method)
+                parameter_names = [param.name for param in signature.parameters.values()][1:]
+                self.function_lookup[name]=method
+                function_list[name]=parameter_names
+                pass
+        self.config["functions"]=function_list
 
     def on_message(self, ws, message):
         response_data = json.loads(message)
