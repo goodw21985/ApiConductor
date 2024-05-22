@@ -73,32 +73,30 @@ class TestConversation(language_client.Conversation):
             result = self.wrap_string(**value)
         return (_id, result)
 
+    @language_client.managed_function
     def search_email(self, a=0, b=0, c=0):
         return a + 100
 
+    @language_client.managed_function
     def search_teams(self, a=0, b=0, c=0):
         return a + 100
 
+    @language_client.managed_function
     def search_meetings(self, a=0, b=0, c=0):
         return a + 100
 
+    @language_client.managed_function
     def wrap_string(self, a=0, b=0, c=0):
         return a + 100
 
 class TestClientServerModuleo(AsyncTestCase):
     def create_client(self, config):
-        client = language_client.ApiConductorClient(config, "ws://localhost:" + str(gport))
+        client = language_client.ApiConductorClient(config, TestConversation, "ws://localhost:" + str(gport))
         return client
 
     def test_echo(self):
         async def run_test():
             config = {
-                'functions': {
-                    'search_email': ['a', 'b', 'c'],
-                    'search_teams': ['a', 'b', 'c'],
-                    'search_meetings': ['a', 'b', 'c'],
-                    'wrap_string': ['a', 'b', 'c'],
-                },
                 'module_blacklist': ['io']
             }
             self.client = self.create_client(config)
