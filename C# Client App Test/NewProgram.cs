@@ -1,8 +1,13 @@
-﻿using static ApiConductorClient;
+﻿using static ApiConductorClientNew;
 
-class MyConversation : ApiConductorClient.Conversation
+class MyConversation : ApiConductorClientNew.Conversation
 {
-    public MyConversation(ApiConductorClient client, string code) : base(client, code) { }
+    public MyConversation(ApiConductorClientNew client, string code) : base(client, code) { }
+
+    protected override void on_call(dynamic value)
+    {
+        Console.WriteLine($"on call {value}");
+    }
 
     protected override void on_return(dynamic value)
     {
@@ -43,11 +48,11 @@ class MyConversation : ApiConductorClient.Conversation
     }
 }
 
-class Program
+class NewProgram
 {
     static async Task Main(string[] args)
     {
-        var config = new ApiConductorClient.Config
+        var config = new ApiConductorClientNew.Config
         {
             ModuleBlacklist = new List<string> { "io", "sockets", "sys" }
         };
@@ -64,9 +69,10 @@ return y
 
 
 
-        var client = new ApiConductorClient(config, typeof(MyConversation));
+        var client = new ApiConductorClientNew(config, typeof(MyConversation));
 
         await client.ConnectAsync();
+        //await client.TestTestSendMessagesAsync();
 
         var conversation = new MyConversation(client, src);
         await conversation.Wait();

@@ -1,17 +1,14 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Diagnostics.SymbolStore;
 using System.Net.WebSockets;
-using System.Reflection;
 using System.Text;
-using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using static ApiConductorClient;
-using static System.Collections.Specialized.BitVector32;
+using System.Reflection;
 
-public class ApiConductorClient
+public class ApiConductorClientNew
 {
     private readonly Uri _uri;
     private readonly ClientWebSocket _webSocket;
@@ -21,13 +18,16 @@ public class ApiConductorClient
     private Dictionary<string, Conversation> _conversations = new Dictionary<string, Conversation>();
     Dictionary<string, MethodInfo> _function_lookup = new Dictionary<string, MethodInfo>();
 
-    public ApiConductorClient(Config config, Type type, string uri = "ws://localhost:8765")
+
+    public ApiConductorClientNew(Config config, Type type, string uri = "ws://localhost:8765")
     {
         _config = config;
         _uri = new Uri(uri);
         _webSocket = new ClientWebSocket();
         _cancellationTokenSource = new CancellationTokenSource();
+
         this.BuildFunctionTable(type);
+
     }
 
     private void BuildFunctionTable(Type type)
@@ -49,16 +49,27 @@ public class ApiConductorClient
         }
     }
 
+
     public async Task ConnectAsync()
     {
         await _webSocket.ConnectAsync(_uri, _cancellationTokenSource.Token);
         Console.WriteLine("Connected to WebSocket server");
         var msg = this._config.ToString();
         await this.SendMessageAsync(msg);
-        this._receiveTask = Task.Run(ReceiveMessagesAsync);
+        // Start the task to receive messages asynchronously
+        this._receiveTask = ReceiveMessagesAsync();
     }
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+    public async Task CloseAsync()
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
+    {
+    }
+
+
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
     public async Task SendMessageAsync(Conversation conversation)
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
     {
         this._conversations[conversation._conversation_id] = conversation;
         var message = new Dictionary<string, string>
@@ -74,27 +85,49 @@ public class ApiConductorClient
         var segment = new ArraySegment<byte>(buffer);
         await _webSocket.SendAsync(segment, WebSocketMessageType.Text, true, _cancellationTokenSource.Token);
         Console.WriteLine("started conversation");
+
+//    await TestTestSendMessagesAsync();
     }
 
-    public async Task SendMessageAsync(string message)
+
+    public async Task TestTestSendMessagesAsync()
     {
-        var buffer = Encoding.UTF8.GetBytes(message);
-        var segment = new ArraySegment<byte>(buffer);
-        await _webSocket.SendAsync(segment, WebSocketMessageType.Text, true, _cancellationTokenSource.Token);
-        Console.WriteLine("started connection");
+        var message2 = @"{
+  ""conversation_id"": ""5e28b5eb-c741-4458-b5a1-46aafe555283"",
+  ""code"": ""\r\nx = 2\r\na = search_email(x)\r\nif (a \u003C 3):\r\n    y = search_email(a \u002B 5)\r\nelse:\r\n    y = search_email(a \u002B 10)\r\nreturn y\r\n""
+}
+";
+
+        // Send the second message
+        await SendMessageAsync(message2);
+        Console.WriteLine($"Sent: {message2}");
+
+        // Wait for the receive task to complete
+        await this._receiveTask;
+
+        await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+    }
+
+    private async Task SendMessageAsync(string message)
+    {
+        var bytes = Encoding.UTF8.GetBytes(message);
+        var buffer = new ArraySegment<byte>(bytes);
+        await _webSocket.SendAsync(buffer, WebSocketMessageType.Text, true, CancellationToken.None);
     }
 
     private async Task ReceiveMessagesAsync()
     {
         Console.WriteLine("listening");
         var buffer = new byte[1024 * 64];
-        while (!_cancellationTokenSource.Token.IsCancellationRequested)
+
+        while (_webSocket.State == WebSocketState.Open)
         {
             WebSocketReceiveResult? result = null;
             try
             {
+
                 Array.Clear(buffer, 0, buffer.Length);
-                result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), _cancellationTokenSource.Token);
+                result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
             }
             catch (WebSocketException ex)
             {
@@ -104,57 +137,39 @@ public class ApiConductorClient
 
             if (result.MessageType == WebSocketMessageType.Close)
             {
-                await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", _cancellationTokenSource.Token);
-                Console.WriteLine("WebSocket closed");
+                await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                 break;
             }
 
-            string message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-            JsonDocument document = JsonDocument.Parse(message);
-            JsonElement root = document.RootElement;
-
-            var response = JsonUtilities.JsonElementToObject(root) as IDictionary<string, object?>;
+            var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+            Dictionary<string, object>? response = JsonSerializer.Deserialize<Dictionary<string, object>>(message);
             if (response == null)
             {
                 continue;
             }
-
-            if (response.TryGetValue("conversation_id", out var conversation_id))
+                if (response.TryGetValue("conversation_id", out var conversation_id) && this._conversations.TryGetValue(conversation_id?.ToString()??"", out var conversation))
             {
-                if (this._conversations.TryGetValue(conversation_id?.ToString() ?? "", out Conversation? conversation))
+                if (response.TryGetValue("new_code", out var new_code))
                 {
-                    if (response.TryGetValue("new_code", out var new_code))
-                    {
-                        conversation.Enqueue(new Action("new_code", new_code));
-                    }
-                    else if (response.TryGetValue("exception", out var exception))
-                    {
-                        conversation.Enqueue(new Action("exception", exception));
-                    }
-                    else if (response.TryGetValue("call", out var call))
-                    {
-                        conversation.Enqueue(new Action("call", call));
-                    }
-                    else if (response.TryGetValue("done", out var done))
-                    {
-                        conversation.Enqueue(new Action("done", done));
-                    }
-                    else if (response.TryGetValue("return", out var returnVal))
-                    {
-                        conversation.Enqueue(new Action("return", returnVal));
-                    }
+                    conversation.Enqueue(new Action("new_code", new_code));
+                }
+                else if (response.TryGetValue("exception", out var exception))
+                {
+                    conversation.Enqueue(new Action("exception", exception));
+                }
+                else if (response.TryGetValue("call", out var call))
+                {
+                    conversation.Enqueue(new Action("call", call));
+                }
+                else if (response.TryGetValue("done", out var done))
+                {
+                    conversation.Enqueue(new Action("done", done));
+                }
+                else if (response.TryGetValue("return", out var returnVal))
+                {
+                    conversation.Enqueue(new Action("return", returnVal));
                 }
             }
-        }
-    }
-
-    public async Task CloseAsync()
-    {
-        _cancellationTokenSource.Cancel();
-        await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-        if (_receiveTask != null)
-        {
-            await _receiveTask;
         }
     }
 
@@ -169,11 +184,11 @@ public class ApiConductorClient
     public class Action
     {
         public readonly string _ev;
-        public readonly object _value;
-        public Action(string ev, object? val)
+        public readonly dynamic _value;
+        public Action(string ev, dynamic value)
         {
             this._ev = ev;
-            this._value = val??new object();
+            this._value = value;
         }
     }
 
@@ -198,7 +213,7 @@ public class ApiConductorClient
 
     public class Conversation : IDisposable
     {
-        public readonly ApiConductorClient _client;
+        public readonly ApiConductorClientNew _client;
         public readonly string _code;
         private Task _backgroundTask;
         private CancellationTokenSource _cancellationTokenSource;
@@ -207,7 +222,7 @@ public class ApiConductorClient
         public string _conversation_id = Guid.NewGuid().ToString();
 
 
-        public Conversation(ApiConductorClient client, string code)
+        public Conversation(ApiConductorClientNew client, string code)
         {
             _client = client;
             _code = code;
@@ -248,20 +263,11 @@ public class ApiConductorClient
                     switch (action._ev)
                     {
                         case "new_code":
-                            this.on_new_code(action._value.ToString()??"");
+                            this.on_new_code(action._value);
                             break;
 
                         case "call":
-                            (string action_id, object result) = this.on_call(action._value);
-                            var message = new Dictionary<string, object>
-                            {
-                                { "conversation_id", this._conversation_id },
-                                { "action_id", action_id },
-                                { "result", result},
-                            };
-
-                            string jsonString = JsonSerializer.Serialize(message, new JsonSerializerOptions { WriteIndented = true });
-                            await this._client.SendMessageAsync(jsonString);
+                            this.on_call(action._value);
                             break;
 
                         case "return":
@@ -273,10 +279,15 @@ public class ApiConductorClient
                             break;
 
                         case "exception":
-                            this.on_exception(action._value.ToString()??"");
+                            this.on_exception(action._value);
                             break;
 
                     }
+                    // Process the message
+                    Console.WriteLine($"Processing message: {action}");
+
+                    // Example hook call
+                    this.on_call(action);
                 }
 
                 this.on_complete();
@@ -287,57 +298,11 @@ public class ApiConductorClient
             }
         }
 
-        protected virtual (string action_id, object result) on_call(object desc)
+        protected virtual void on_call(dynamic value)
         {
-            var dict = desc as Dictionary<string, object?>; 
-            if (dict==null)
-            {
-                throw new ArgumentException("malformed call description");
-            }
-
-            if (!dict.TryGetValue("_fn", out var fno) || !(fno is string fn) || !this._client._function_lookup.TryGetValue(fn, out var methodInfo))
-            {
-                throw new ArgumentException("missing function name");
-            }
-
-            if (!dict.TryGetValue("_id", out var ido) || !(ido is string action_id))
-            {
-                throw new ArgumentException("missing function id");
-            }
-
-            ParameterInfo[] paramInfos = methodInfo.GetParameters();
-            if (paramInfos == null)
-            {
-                throw new ArgumentException("missing parameters for managed function");
-            }
-            else
-            {
-                object[] paramValues = new object[paramInfos.Length];
-
-                // Populate the parameter values from the dictionary
-                for (int i = 0; i < paramInfos.Length; i++)
-                {
-                    if (dict.TryGetValue(paramInfos[i].Name ?? "", out object? value))
-                    {
-                        paramValues[i] = Convert.ChangeType(value ?? new object(), paramInfos[i].ParameterType);
-                    }
-                    else if (paramInfos[i].HasDefaultValue)
-                    {
-                        paramValues[i] = paramInfos[i].DefaultValue;
-                    }
-                    else
-                    {
-                        throw new ArgumentException($"Missing parameter: {paramInfos[i].Name}");
-                    }
-                }
-
-                // Invoke the method
-                var result = methodInfo.Invoke(this, paramValues) ?? new object();
-                return (action_id, result);
-            }
         }
 
-        protected virtual void on_return(object value)
+        protected virtual void on_return(dynamic value)
         {
         }
 
@@ -398,59 +363,4 @@ public class ApiConductorClient
         }
 
     }
-
-    public static class JsonUtilities
-    {
-        public static object? JsonElementToObject(JsonElement element)
-        {
-            
-            return element.ValueKind switch
-            {
-                JsonValueKind.Object => JsonElementToDictionary(element),
-                JsonValueKind.Array => JsonElementToList(element),
-                JsonValueKind.String => element.GetString(),
-                JsonValueKind.Number => GetNumberValue(element),
-                JsonValueKind.True => true,
-                JsonValueKind.False => false,
-                JsonValueKind.Null => null,
-                _ => throw new InvalidOperationException($"Unsupported JsonValueKind: {element.ValueKind}"),
-            };
-        }
-
-        private static IDictionary<string, object?> JsonElementToDictionary(JsonElement element)
-        {
-            var dictionary = new Dictionary<string, object?>();
-
-            foreach (JsonProperty property in element.EnumerateObject())
-            {
-                dictionary[property.Name] = JsonElementToObject(property.Value);
-            }
-
-            return dictionary;
-        }
-
-        private static IList<object?> JsonElementToList(JsonElement element)
-        {
-            var list = new List<object?>();
-
-            foreach (var item in element.EnumerateArray())
-            {
-                list.Add(JsonElementToObject(item));
-            }
-
-            return list;
-        }
-
-        private static object GetNumberValue(JsonElement element)
-        {
-            if (element.TryGetInt32(out int intValue))
-                return intValue;
-            if (element.TryGetInt64(out long longValue))
-                return longValue;
-            if (element.TryGetDouble(out double doubleValue))
-                return doubleValue;
-            return element.GetDecimal();
-        }
-    }
 }
-
