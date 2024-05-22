@@ -71,9 +71,6 @@ return y
         var conversation = new MyConversation(client, src);
         await conversation.Wait();
 
-        Console.WriteLine("Press any key to close the connection...");
-        Console.ReadKey();
-
         await client.CloseAsync();
     }
 }

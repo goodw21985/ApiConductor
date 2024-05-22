@@ -151,11 +151,15 @@ public class ApiConductorClient
     public async Task CloseAsync()
     {
         _cancellationTokenSource.Cancel();
-        await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-        if (_receiveTask != null)
+        try
         {
-            await _receiveTask;
+            await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+            if (_receiveTask != null)
+            {
+                await _receiveTask;
+            }
         }
+        catch { }
     }
 
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]

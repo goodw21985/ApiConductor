@@ -20,8 +20,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "C# Orchestrator", "C# Orche
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "C# Client App", "C# Client App\C# Client App.csproj", "{1246CE27-1F34-4162-99F6-666371D06D02}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "C# Client App Test", "C# Client App Test\C# Client App Test.csproj", "{4D290AD0-B789-4D67-8E54-27B4ABBA9689}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,10 +42,6 @@ Global
 		{1246CE27-1F34-4162-99F6-666371D06D02}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1246CE27-1F34-4162-99F6-666371D06D02}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1246CE27-1F34-4162-99F6-666371D06D02}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4D290AD0-B789-4D67-8E54-27B4ABBA9689}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4D290AD0-B789-4D67-8E54-27B4ABBA9689}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4D290AD0-B789-4D67-8E54-27B4ABBA9689}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4D290AD0-B789-4D67-8E54-27B4ABBA9689}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
