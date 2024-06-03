@@ -43,3 +43,5 @@ packages/
 *~
 *.bak
 *.swp
+/AstTransformation/ast_transform.egg-info
+/AstTransformation/build/lib
