@@ -12,7 +12,7 @@ setup(
         "gevent==24.2.1",
         "greenlet==3.0.3",
         "mypy-extensions==1.0.0",
-        "packaging==24.0",
+        "packaging==23.1",
         "pathspec==0.12.1",
         "platformdirs==4.2.1",
         "protobuf==5.26.1",
