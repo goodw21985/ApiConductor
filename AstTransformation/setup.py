@@ -11,8 +11,6 @@ setup(
         "colorama==0.4.6",
         "gevent==24.2.1",
         "greenlet==3.0.3",
-        "grpcio==1.63.0",
-        "grpcio-tools==1.63.0",
         "mypy-extensions==1.0.0",
         "packaging==24.0",
         "pathspec==0.12.1",
