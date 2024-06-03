@@ -9,8 +9,7 @@ from ast_transform import astor_fork
 from ast_transform import transform
 from ast_transform import scope_analyzer
 from ast_transform import rewriter
-from ast_transform import common
-import orchestrator
+from ast_transform import common, orchestrator
 import threading
 import logging
 

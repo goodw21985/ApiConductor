@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>346a99d3-62ae-4bde-8cd6-681338c2ab9a</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>tests\test_timelang.py</StartupFile>
+    <StartupFile>tests\test_client_server.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -43,7 +43,6 @@
     <Compile Include="ast_transform\common.py" />
     <Compile Include="ast_transform\timelang.py" />
     <Compile Include="MyClient.py" />
-    <Compile Include="orchestrator.py" />
     <Compile Include="ast_transform\test_orchestrator.py" />
     <Compile Include="ast_transform\orchestrator.py" />
     <Compile Include="ast_transform\safety.py" />
@@ -58,6 +57,7 @@
     <Compile Include="examples\saftey.py" />
     <Compile Include="ast_transform\language_server.py" />
     <Compile Include="server.py" />
+    <Compile Include="server_orchestrator.py" />
     <Compile Include="tests\temp.py" />
     <Compile Include="tests\test_client_server.py" />
     <Compile Include="tests\test_dependency_analyzer.py" />
