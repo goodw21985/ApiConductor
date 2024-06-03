@@ -15,7 +15,6 @@ setup(
         "packaging>=23.1",
         "pathspec>=0.12.1",
         "platformdirs>=4.2.1",
-        "protobuf>=5.26.1",
         "pycparser>=2.22",
         "pytz>=2024.1",
         "setuptools>=69.5.1",
