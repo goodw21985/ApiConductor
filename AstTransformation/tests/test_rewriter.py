@@ -15,6 +15,7 @@ import io
 
 config = common.Config()
 config.awaitable_functions = {"search_email":[], "search_teams":[], "search_meetings":[], "create_dict":[], "wrap_string":[]}
+config.exposed_functions={'now'}
 config.module_blacklist=None
 config.use_async=False
 config.wrap_in_function_def =True
@@ -106,6 +107,36 @@ def _program(orchestrator):
         result_dict = _C0.Result
         result_dict['c'] = 30
         _return_value = orchestrator._wait(orchestrator.wrap_string(result_dict, _id='_C1'), '_C1')
+    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0']})
+    return _return_value
+
+
+orchestrator.Return(_program(orchestrator))"""
+
+        config.wrap_in_function_def =False
+
+        self.check(source_code, None, expected)
+##########################
+    def test_exposed_fn(self):
+        source_code = """
+a=now(3,4,a=5,b=search_email(3))
+"""
+
+        expected = """
+import orchestrator
+orchestrator = orchestrator.Orchestrator()
+
+
+def _program(orchestrator):
+    _C0 = _return_value = a = None
+
+    def _concurrent_G0():
+        nonlocal _C0
+        _C0 = orchestrator.search_email(3, _id='_C0')
+
+    def _concurrent_G1():
+        nonlocal _C0, a
+        a = orchestrator.now(3, 4, a=5, b=_C0.Result)
     orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0']})
     return _return_value
 

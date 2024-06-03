@@ -25,6 +25,7 @@ class Mock():
         self.build_awaitable_functions_class()
 
         config = common.Config()
+        config.exposed_function=None
         config.awaitable_functions=self.awaitable_functions
         config.module_blacklist=None
         config.wrap_in_function_def =False

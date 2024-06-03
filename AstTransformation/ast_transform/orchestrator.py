@@ -3,20 +3,29 @@ import threading
 import time
 import io
 import queue
+import datetime
+import timelang
 
 class Task:
     def __init__(self):
         self.Result = None
         
 class Orchestrator:
-    def __init__(self):
+    def __init__(self, now = None, zone=None):
         self._task_id = {}
         self.lock = threading.Lock()
         self.signal_queue = queue.Queue()
         self.dag = None
+        self.now = now or datetime.datetime.now()
+        self.zone = zone or "America/Los_Angeles"
 
     def Task(self, node):
         return node
+    
+    def now(self, date_code):
+        timestamp = timelang.parse_date_code(date_code, self.now)
+        utc_timestamp = timelang.convToUtc(timestamp, self.zone)
+        return utc_timestamp.isoformat()
     
     def _completion(self, task, val):
         time.sleep(1)  # Wait for one second

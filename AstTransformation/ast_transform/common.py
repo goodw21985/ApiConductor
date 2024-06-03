@@ -209,6 +209,7 @@ class Config:
     def __init__(self):
         self.wrap_in_function_def = False
         self.awaitable_functions = {}
+        self.exposed_functions = set([])
         self.module_blacklist = None
         self.log = False
         self.single_function=False  

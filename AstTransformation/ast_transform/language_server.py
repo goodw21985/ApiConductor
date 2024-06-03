@@ -158,6 +158,9 @@ class ApiConductorServer:
         config.module_blacklist=None
         if "module_blacklist" in data:
             config.module_blacklist=data["module_blacklist"]
+        config.exposed_functions=None
+        if "exposed_functions" in data:
+            config.exposed_functions=data["exposed_functions"]
         config.wrap_in_function_def =False
         config.single_function=True
         self.ws_config[ws]=config

@@ -13,6 +13,7 @@ class AsyncTestCase(unittest.TestCase):
         self.server_ready_event = Event()
         config = common.Config()
         config.awaitable_functions = {"search_email": [], "search_teams": [], "search_meetings": [], "create_dict": [], "wrap_string": []}
+        config.exposed_functions = {'now'}
         config.module_blacklist = None
         config.wrap_in_function_def = False
         config.single_function = True

@@ -258,6 +258,15 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 return self.visit_Call_For_Comprehension(node, parent)
         
         if node not in self.critical_nodes: # and not parent_critical:
+            if isinstance(node.func, ast.Name):
+                if node.func.id in self.config.exposed_functions:
+                    function_call = ast.Attribute(
+                        value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
+                        attr=node.func,
+                        ctx=ast.Load())
+                    args = [self.generic_visit(arg) for arg in node.args]
+                    keywords = [self.generic_visit(kw) for kw in node.keywords]
+                    return ast.Call(func = function_call, args = args, keywords = keywords)
             return self.generic_visit(node)
 
         group = self.current_node_lookup.assigned_concurrency_group

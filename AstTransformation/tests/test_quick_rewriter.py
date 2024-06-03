@@ -14,6 +14,7 @@ import io
 
 config = common.Config()
 config.awaitable_functions = {"search_email":[], "search_teams":[], "search_meetings":[], "create_dict":[], "wrap_string":[]}
+config.exposed_functions={'now'}
 config.module_blacklist = None
 
 
@@ -89,63 +90,47 @@ class TestQRAnalyzerModule(unittest.TestCase):
 ##########################
     def test_critical_if_split(self):
         source_code = """
-processed_values = {search_email(item) for item in range(10) if item % 2 == 0}
-return processed_values
+a=now(3,4,a=5,b=search_email(3))
 """
 
         expected = """
-processed_values = {search_email(item) for item in range(10) if item % 2 == 0}
-return processed_values
+a=now(3,4,a=5,b=search_email(3))
 
 
-C0 => G0 used by (C1) = {search_email(item) for item in range(10) if item % 2 == 0}
-C1 => G1 used by () = return processed_values
+C0 => G0 used by (C1) = search_email(3)
+C1 => G1 used by () = a
 
 G0 <= (C0) : uses 
 G1 <= (C1) : uses G0
 
-G0 = {search_email(item) for item in range(10) if item % 2 == 0}
-G1 = return processed_values
-G1: C1 processed_values = {search_email(item) for item in range(10) if item % 2 == 0}
-G0: C1 {search_email(item) for item in range(10) if item % 2 == 0}
-G0: C0 for item in range(10) if item % 2 == 0
-G0: C0 item
-G0: C0 range(10)
-G0: C0 range
-G0: C0 10
-G0: C0 item % 2 == 0
-G0: C0 item % 2
-G0: C0 item
-G0: C0 2
-G0: C0 0
-G0: C0 search_email(item)
+G0 = search_email(3)
+G1 = a
+G1: C1 a = now(3, 4, a=5, b=search_email(3))
+G1:  a
+G1: C1 now(3, 4, a=5, b=search_email(3))
+G1: C1 now
+G1: C1 3
+G1: C1 4
+G1: C1 5
+G0: C1 search_email(3)
 G0: C0 search_email
-G0: C0 item
-G1:  return processed_values
-G1: C1 processed_values
+G0: C0 3
 
 import orchestrator
 orchestrator = orchestrator.Orchestrator()
 
 
 def _program(orchestrator):
-    _C0 = _comp_C0 = _return_value = item = processed_values = None
+    _C0 = _return_value = a = None
 
     def _concurrent_G0():
-        nonlocal _comp_C0, item
-        _comp_C0 = [orchestrator.search_email(item, _id=orchestrator._create_id('_C0', _concurrent_G_C0)) for item in range(10) if item % 2 == 0]
-        orchestrator._complete('_comp_C0')
+        nonlocal _C0
+        _C0 = orchestrator.search_email(3, _id='_C0')
 
     def _concurrent_G1():
-        nonlocal _comp_C0, _return_value, processed_values
-        processed_values = _C0.Result
-        _return_value = processed_values
-
-    def _concurrent_G_C0():
-        nonlocal _C0, _comp_C0
-        _C0 = orchestrator._create_task({item.Result for item in _comp_C0})
-        orchestrator._complete('_C0')
-    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0'], _concurrent_G_C0: ['_comp_C0']})
+        nonlocal _C0, a
+        a = orchestrator.now(3, 4, a=5, b=_C0.Result)
+    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0']})
     return _return_value
 
 
