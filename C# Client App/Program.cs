@@ -4,7 +4,7 @@ class MyConversation : ApiConductorClient.Conversation
 {
     public MyConversation(ApiConductorClient client, string code) : base(client, code) { }
 
-    protected override void on_return(dynamic value)
+    protected override void on_return(object value)
     {
         Console.WriteLine($"on_return {value}");
     }
