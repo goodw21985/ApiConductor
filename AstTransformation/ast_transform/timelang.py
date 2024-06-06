@@ -282,7 +282,7 @@ def convToUtc(current_time, zone):
 def get_timestamp_from_code(date_code, current_time=None):
     # print(date_code)
     timestamp = parse_date_code(date_code, current_time)
-    return timestamp.isoformat()
+    return timestamp.isoformat().replace('+00:00', 'Z')
 
 # Example usage
 # print(parse_date_code("March 15 plus 3 hours", current_time=datetime(2023, 3, 14)))
