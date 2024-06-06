@@ -263,16 +263,21 @@ def parse_date_code(date_code, current_time=None):
 
     return reference_date
 
-def convToUtc(current_time, zone):
-    time_zone = pytz.timezone(zone)  # Replace with your time zone
-    localized_time = time_zone.localize(current_time)
-    utc_time = localized_time.astimezone(pytz.utc)
-    return utc_time
-
 def convFromUtc(utc_time, zone):
     time_zone = pytz.timezone(zone)  # Replace with your time zone
     local_time = utc_time.astimezone(time_zone)
     return local_time
+
+def convToUtc(current_time, zone):
+    time_zone = pytz.timezone(zone)
+    if current_time.tzinfo is None:
+        # Naive datetime
+        localized_time = time_zone.localize(current_time)
+    else:
+        # Aware datetime
+        localized_time = current_time.astimezone(time_zone)
+    utc_time = localized_time.astimezone(pytz.utc)
+    return utc_time
 
 def get_timestamp_from_code(date_code, current_time=None):
     # print(date_code)
