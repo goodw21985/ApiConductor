@@ -195,7 +195,8 @@ class ApiConductorServer:
                 else:
                     pass
         except Exception as e:
-            self.logger.error(f"WebSocket error: {e}")
+            stack_trace = traceback.format_exc()
+            self.logger.error(f"WebSocket error: {e} -- {stack_trace}")
             self.is_healthy = False
             
     # if function paramaters are listed without keys, insert the keys
