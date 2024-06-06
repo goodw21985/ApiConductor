@@ -267,6 +267,11 @@ def convToUtc(current_time, zone):
     utc_time = localized_time.astimezone(pytz.utc)
     return utc_time
 
+def convFromUtc(utc_time, zone):
+    time_zone = pytz.timezone(zone)  # Replace with your time zone
+    local_time = utc_time.astimezone(time_zone)
+    return local_time
+
 def get_timestamp_from_code(date_code, current_time=None):
     # print(date_code)
     timestamp = parse_date_code(date_code, current_time)

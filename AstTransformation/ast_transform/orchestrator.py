@@ -4,7 +4,6 @@ import io
 import queue
 import datetime
 from ast_transform import timelang
-import pytz
 
 class Task:
     def __init__(self):
@@ -23,12 +22,7 @@ class Orchestrator:
         self.future={}
         self.dag = None
         self.zone = zone or "America/Los_Angeles"
-        utc_now = datetime.utcnow()
-        utc_zone = pytz.utc
-        la_zone = pytz.timezone(self.zone)
-        utc_now = utc_zone.localize(utc_now)
-        la_time = utc_now.astimezone(la_zone)
-        self.now = now or la_time
+        self.now = now or timelang.convFromUtc(datetime.utcnow(), self.zone)
         self.server = server
         self.conversation_id = conversation_id
         self._killed_request=False
