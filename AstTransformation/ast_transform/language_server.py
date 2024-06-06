@@ -9,7 +9,7 @@ from ast_transform import astor_fork
 from ast_transform import transform
 from ast_transform import scope_analyzer
 from ast_transform import rewriter
-from ast_transform import common, orchestrator
+from ast_transform import common, orchestrator as orchestrator_module
 import threading
 import logging
 
@@ -128,7 +128,7 @@ class ApiConductorServer:
         await send1
         self.logger.info(f"generated code: {conversation.new_code}")
 
-        orchestror = orchestrator.Orchestrator(self, conversation_id)
+        orchestror = orchestrator_module.Orchestrator(self, conversation_id)
                 
         globals_dict = {'orchestrator': orchestror}
         if self.config.built_ins_module:
