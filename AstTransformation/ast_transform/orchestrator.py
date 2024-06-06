@@ -13,7 +13,7 @@ class StopExecution(Exception):
     pass
         
 class Orchestrator:
-    def __init__(self, server, conversation_id, now = None, zone=None):
+    def __init__(self, server, conversation_id, current_local_time = None, zone=None):
         self._task_id = {}
         self.lock = threading.Lock()
         self.signal_queue = queue.Queue()
@@ -22,7 +22,7 @@ class Orchestrator:
         self.future={}
         self.dag = None
         self.zone = zone or "America/Los_Angeles"
-        self.now = now or timelang.convFromUtc(datetime.utcnow(), self.zone)
+        self.current_local_time = current_local_time or timelang.convFromUtc(datetime.utcnow(), self.zone)
         self.server = server
         self.conversation_id = conversation_id
         self._killed_request=False
@@ -40,7 +40,7 @@ class Orchestrator:
         return task
 
     def now(self, date_code):
-        timestamp = timelang.parse_date_code(date_code, self.now)
+        timestamp = timelang.parse_date_code(date_code, self.current_local_time)
         utc_timestamp = timelang.convToUtc(timestamp, self.zone)
         return utc_timestamp.isoformat()
     
