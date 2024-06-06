@@ -141,10 +141,12 @@ def parse_relative_time_shift(tokens, reference_date):
         groups = match.groups()
         if groups[0] in ['plus', 'minus']:
             operator, quantity, unit = groups[0], groups[1], groups[3]
-        elif groups[4] is not None:
+        elif len(groups)>4 and groups[4] is not None:
             operator, quantity, unit = 'plus', groups[4], groups[6]
-        else:
+        elif len(groups)>9:
             operator, quantity, unit = 'plus', 0, groups[9]
+        else:
+             return None, 0, None
 
         quantity = float(quantity) if quantity else 0
         if operator == 'minus':

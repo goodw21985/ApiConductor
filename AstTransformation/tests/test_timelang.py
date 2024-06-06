@@ -24,6 +24,11 @@ class TestDateParser(unittest.TestCase):
         expected = datetime(2023, 3, 15, 14, 0, 0).isoformat()
         self.assertEqual(result, expected)
     
+    def test_specific_time(self):
+        result = get_timestamp_from_code("March 15 2024 2PM", current_time=self.current_time)
+        expected = datetime(2024, 3, 15, 14, 0, 0).isoformat()
+        self.assertEqual(result, expected)
+    
     def test_specific_time_plus_one_day(self):
         result = get_timestamp_from_code("March 15 2PM plus 1 day end", current_time=self.current_time)
         expected = (datetime(2023, 3, 15, 14, 0, 0) + timedelta(days=1))
@@ -118,10 +123,16 @@ class TestDateParser(unittest.TestCase):
         self.assertEqual(result, expected)
     
     def test_next_wednesday_at_3pm_minus_2_days(self):
-        result = get_timestamp_from_code("next Wednesday at 3PM minus 2 days end", current_time=self.current_time)
+        result = get_timestamp_from_code("following Wednesday at 3PM minus 2 days end", current_time=self.current_time)
         expected = (datetime(2023, 3, 15, 15, 0, 0) - timedelta(days=2)).isoformat()
         self.assertEqual(result, expected)
 
+    def test_prev_week_monday_start(self):
+        result = get_timestamp_from_code('previous monday start', current_time=self.current_time)
+        expected = (datetime(2023, 3, 13, 0, 0, 0)).isoformat()
+        self.assertEqual(result, expected)
+
+        
 if __name__ == '__main__':
     
     unittest.main()
