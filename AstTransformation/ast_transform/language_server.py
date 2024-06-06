@@ -89,6 +89,7 @@ class ApiConductorServer:
         except Exception as e:
             self.logger.error(f"code execution exception: {e}")
             stack_trace = traceback.format_exc()
+            self.logger.error(stack_trace)
             return type(e).__name__+": "+str(e)+ " -- " + stack_trace
         finally:
             completion_event.set()
