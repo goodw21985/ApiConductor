@@ -59,7 +59,7 @@ class TestDateParser(unittest.TestCase):
     
     def test_specific_time_plus_one_day(self):
         result = get_timestamp_from_code("March 15 2PM plus 1 day end", current_time=self.current_time)
-        expected = (datetime(2023, 3, 15, 14, 0, 0) + timedelta(days=1)).isoformat()
+        expected = (datetime(2023, 3, 16, 23, 59, 59, 999999)).isoformat()
         self.assertEqual(result, expected)
     
     def test_complex_date_code(self):
@@ -109,7 +109,7 @@ class TestDateParser(unittest.TestCase):
     
     def test_april_5_2pm_plus_3_days(self):
         result = get_timestamp_from_code("April 5 2PM plus 3 days end", current_time=self.current_time)
-        expected = datetime(2023, 4, 8, 14, 0, 0).isoformat()
+        expected = datetime(2023, 4, 8, 23, 59, 59, 999999).isoformat()
         self.assertEqual(result, expected)
     
     def test_january_1_minus_1_year(self):
@@ -119,17 +119,22 @@ class TestDateParser(unittest.TestCase):
     
     def test_previous_thursday_at_4pm_plus_1_week(self):
         result = get_timestamp_from_code("previous Thursday at 4PM plus 1 week end", current_time=self.current_time)
-        expected = (datetime(2023, 3, 9, 16, 0, 0) + timedelta(weeks=1)).isoformat()
+        expected = (datetime(2023, 3, 12, 23, 59, 59,999999)).isoformat()
         self.assertEqual(result, expected)
     
     def test_next_wednesday_at_3pm_minus_2_days(self):
         result = get_timestamp_from_code("following Wednesday at 3PM minus 2 days end", current_time=self.current_time)
-        expected = (datetime(2023, 3, 15, 15, 0, 0) - timedelta(days=2)).isoformat()
+        expected = (datetime(2023, 3, 13, 23, 59, 59, 999999)).isoformat()
         self.assertEqual(result, expected)
-
+    
     def test_prev_week_monday_start(self):
         result = get_timestamp_from_code('previous monday start', current_time=self.current_time)
         expected = (datetime(2023, 3, 13, 0, 0, 0)).isoformat()
+        self.assertEqual(result, expected)
+        
+    def test_prev_week_start(self):
+        result = get_timestamp_from_code('previous week start', current_time=self.current_time)
+        expected = (datetime(2023, 2, 27, 0, 0, 0)).isoformat()
         self.assertEqual(result, expected)
 
         

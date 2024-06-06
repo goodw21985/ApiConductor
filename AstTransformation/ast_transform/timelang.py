@@ -2,6 +2,9 @@ import re
 from datetime import datetime, timedelta
 import calendar
 import pytz
+import calendar
+from datetime import datetime, timedelta
+import traceback
 
 def parse_specific_date(tokens, reference_date):
     pattern = re.compile(r'(\b\w+ \d{1,2}(?: \d{4})?\b)')
@@ -59,15 +62,17 @@ def parse_period(tokens, reference_date):
     if tokens[0] == 'last':
         if tokens[1] == 'week':
             start_of_week = reference_date - timedelta(days=reference_date.weekday() + 7)
+            start_of_week = start_of_week.replace(hour=0, minute=0, second=0, microsecond=0)
             end_of_week = start_of_week + timedelta(days=6, hours=23, minutes=59, seconds=59, microseconds=999999)
             return start_of_week, 2, (start_of_week, end_of_week)
         elif tokens[1] == 'month':
             start_of_month = (reference_date.replace(day=1) - timedelta(days=1)).replace(day=1)
+            start_of_month = start_of_month.replace(hour=0, minute=0, second=0, microsecond=0)
             end_of_month = (start_of_month.replace(day=1) + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
             return start_of_month, 2, (start_of_month, end_of_month)
     elif re.match(r'\d{4}', tokens[0]):
         year = int(tokens[0])
-        start_of_year = datetime(year, 1, 1)
+        start_of_year = datetime(year, 1, 1, 0,0,0,0)
         end_of_year = datetime(year, 12, 31, 23, 59, 59, 999999)
         return start_of_year, 1, (start_of_year, end_of_year)
     return None, 0, None
@@ -129,9 +134,67 @@ def parse_month_adjustment(tokens, reference_date):
         return adjusted_date, 2 if direction else 1, (start_of_month, end_of_month)
     return None, 0, None
 
-import calendar
-from datetime import datetime, timedelta
+def time_span_adjustment(tokens_consumed, reference_date, unit, quantity):
+    if unit in ['hours', 'hour']:
+        delta = timedelta(hours=quantity)
+        adjusted_date = reference_date + delta
+        return adjusted_date, tokens_consumed, (adjusted_date, adjusted_date)
+    elif unit in ['minutes', 'minute']:
+        delta = timedelta(minutes=quantity)
+        adjusted_date = reference_date + delta
+        return adjusted_date, tokens_consumed, (adjusted_date, adjusted_date)
+    elif unit in ['days', 'day']:
+        delta = timedelta(days=quantity)
+        adjusted_date = reference_date + delta
+        start_of_day = adjusted_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = adjusted_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+        return adjusted_date, tokens_consumed, (start_of_day, end_of_day)
+    elif unit in ['weeks', 'week']:
+        delta = timedelta(weeks=quantity)
+        adjusted_date = reference_date + delta
+        start_of_week = adjusted_date - timedelta(days=reference_date.weekday() + 7)
+        start_of_week = start_of_week.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_week = start_of_week + timedelta(days=6, hours=23, minutes=59, seconds=59, microseconds=999999)
+        return adjusted_date, tokens_consumed, (start_of_week, end_of_week)
+    elif unit in ['months', 'month']:
+        month = reference_date.month - 1 + int(quantity)
+        year = reference_date.year + month // 12
+        month = month % 12 + 1
+        adjusted_date = reference_date.replace(year=year, month=month)
+        start_of_month = adjusted_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_day = calendar.monthrange(adjusted_date.year, adjusted_date.month)[1]
+        end_of_month = adjusted_date.replace(day=last_day, hour=23, minute=59, second=59, microsecond=999999)
+        return adjusted_date, tokens_consumed, (start_of_month, end_of_month)
+    elif unit in ['quarters', 'quarter']:
+        current_month = reference_date.month
+        current_quarter_start_month = ((current_month - 1) // 3) * 3 + 1
+        new_quarter_start_month = current_quarter_start_month + int(quantity * 3)
+        year = reference_date.year + (new_quarter_start_month - 1) // 12
+        new_quarter_start_month = (new_quarter_start_month - 1) % 12 + 1
+        adjusted_date = reference_date.replace(year=year, month=new_quarter_start_month, day=1)
+        start_of_quarter = adjusted_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end_of_quarter_month = (new_quarter_start_month + 2) % 12 + 1
+        end_of_quarter_year = year if new_quarter_start_month + 2 <= 12 else year + 1
+        end_of_quarter = datetime(end_of_quarter_year, end_of_quarter_month, 1) - timedelta(seconds=1)
+        return adjusted_date, tokens_consumed, (start_of_quarter, end_of_quarter)
+    elif unit in ['years', 'year']:
+        adjusted_date = reference_date.replace(year=reference_date.year + int(quantity))
+        start_of_year = adjusted_date.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        end_of_year = adjusted_date.replace(month=12, day=31, hour=23, minute=59, second=59, microsecond=999999)
+        return adjusted_date, tokens_consumed, (start_of_year, end_of_year)
+    
+def parse_time_span_adjustment(tokens, reference_date):
+    pattern = re.compile(r'\b(previous|following)?\s*(hour|hours|minute|minutes|day|days|week|weeks|month|months|quarter|quarters|year|years)\b')
+    match = pattern.match(' '.join(tokens))
+    if match:
+        direction, unit = match.groups()
+        quantity = 1
+        if direction == 'previous':
+            quantity = -quantity
+        return time_span_adjustment(2, reference_date, unit, quantity)   
+    return None, 0, None
 
+ 
 def parse_relative_time_shift(tokens, reference_date):
     pattern = re.compile(
         r'\b(plus|minus)\s+(\d+(\.\d+)?)\s+(hour|hours|minute|minutes|day|days|week|weeks|month|months|quarter|quarters|year|years)\b|\b(\d+(\.\d+)?)\s+(hour|hours|minute|minutes|day|days|week|weeks|month|months|quarter|quarters|year|years)\b|\b(hour|hours|minute|minutes|day|days|week|weeks|month|months|quarter|quarters|year|years)\b'
@@ -152,52 +215,10 @@ def parse_relative_time_shift(tokens, reference_date):
         if operator == 'minus':
             quantity = -quantity
 
-        if unit in ['hours', 'hour']:
-            delta = timedelta(hours=quantity)
-            adjusted_date = reference_date + delta
-        elif unit in ['minutes', 'minute']:
-            delta = timedelta(minutes=quantity)
-            adjusted_date = reference_date + delta
-        elif unit in ['days', 'day']:
-            delta = timedelta(days=quantity)
-            adjusted_date = reference_date + delta
-        elif unit in ['weeks', 'week']:
-            delta = timedelta(weeks=quantity)
-            adjusted_date = reference_date + delta
-        elif unit in ['months', 'month']:
-            month = reference_date.month - 1 + int(quantity)
-            year = reference_date.year + month // 12
-            month = month % 12 + 1
-            adjusted_date = reference_date.replace(year=year, month=month)
-            start_of_month = adjusted_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            last_day = calendar.monthrange(adjusted_date.year, adjusted_date.month)[1]
-            end_of_month = adjusted_date.replace(day=last_day, hour=23, minute=59, second=59, microsecond=999999)
-        elif unit in ['quarters', 'quarter']:
-            current_month = reference_date.month
-            current_quarter_start_month = ((current_month - 1) // 3) * 3 + 1
-            new_quarter_start_month = current_quarter_start_month + int(quantity * 3)
-            year = reference_date.year + (new_quarter_start_month - 1) // 12
-            new_quarter_start_month = (new_quarter_start_month - 1) % 12 + 1
-            adjusted_date = reference_date.replace(year=year, month=new_quarter_start_month, day=1)
-            start_of_quarter = adjusted_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            end_of_quarter_month = (new_quarter_start_month + 2) % 12 + 1
-            end_of_quarter_year = year if new_quarter_start_month + 2 <= 12 else year + 1
-            end_of_quarter = datetime(end_of_quarter_year, end_of_quarter_month, 1) - timedelta(seconds=1)
-        elif unit in ['years', 'year']:
-            adjusted_date = reference_date.replace(year=reference_date.year + int(quantity))
-            start_of_year = adjusted_date.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-            end_of_year = adjusted_date.replace(month=12, day=31, hour=23, minute=59, second=59, microsecond=999999)
-
         tokens_consumed = 3 if operator in ['plus', 'minus'] and quantity else 1
 
-        if unit in ['months', 'month']:
-            return adjusted_date, tokens_consumed, (start_of_month, end_of_month)
-        elif unit in ['quarters', 'quarter']:
-            return adjusted_date, tokens_consumed, (start_of_quarter, end_of_quarter)
-        elif unit in ['years', 'year']:
-            return adjusted_date, tokens_consumed, (start_of_year, end_of_year)
-        else:
-            return adjusted_date, tokens_consumed, (adjusted_date, adjusted_date)
+        return time_span_adjustment(tokens_consumed, reference_date, unit, quantity)   
+
     return None, 0, None
 
 def parse_specific_time(tokens, reference_date):
@@ -232,7 +253,7 @@ def parse_date_code(date_code, current_time=None):
                   current_time.replace(hour=23, minute=59, second=59, microsecond=999999))
 
     initial_parsers = [parse_date_time, parse_specific_date, parse_relative_date, parse_period]
-    adjustment_parsers = [parse_day_of_week_adjustment, parse_month_adjustment, parse_relative_time_shift, parse_specific_time, parse_context_change]
+    adjustment_parsers = [parse_day_of_week_adjustment, parse_month_adjustment, parse_time_span_adjustment, parse_relative_time_shift, parse_specific_time, parse_context_change]
 
     # First pass: Use initial parsers
     for parser in initial_parsers:
@@ -251,6 +272,7 @@ def parse_date_code(date_code, current_time=None):
                 parsed_date, tokens_consumed, _ = parser(tokens[i:], reference_date, time_range)
             else:
                 parsed_date, tokens_consumed, range_tuple = parser(tokens[i:], reference_date)
+
             if parsed_date:
                 # print(f"{i} {parser.__name__}: {parsed_date}")
                 reference_date = parsed_date
