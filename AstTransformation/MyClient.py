@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
         src = """
 x=1
-a=search_email(x)
+a=search_email(sum(x,2))
 if (a<3):
     y=search_email(a+5)
 else:

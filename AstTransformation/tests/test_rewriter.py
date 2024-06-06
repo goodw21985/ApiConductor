@@ -14,7 +14,7 @@ from unittest.mock import patch
 import io
 
 config = common.Config()
-config.awaitable_functions = {"search_email":[], "search_teams":[], "search_meetings":[], "create_dict":[], "wrap_string":[]}
+config.awaitable_functions = {"search_email":['text','take','sort','reverse'], "search_teams":[], "search_meetings":[], "create_dict":[], "wrap_string":[]}
 config.exposed_functions={'now'}
 config.module_blacklist=None
 config.use_async=False
@@ -138,6 +138,30 @@ def _program(orchestrator):
         nonlocal _C0, a
         a = orchestrator.now(3, 4, a=5, b=_C0.Result)
     orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0']})
+    return _return_value
+
+
+orchestrator.Return(_program(orchestrator))"""
+
+        config.wrap_in_function_def =False
+
+        self.check(source_code, None, expected)
+##########################
+    def test_no_return(self):
+        source_code = """
+search_email(take=1, sort='sent', reverse=True)"""
+        expected = """
+import orchestrator
+orchestrator = orchestrator.Orchestrator()
+
+
+def _program(orchestrator):
+    _C0 = _return_value = None
+
+    def _concurrent_G0():
+        nonlocal _C0
+        _C0 = orchestrator.search_email(take=1, sort='sent', reverse=True, _id='_C0')
+    orchestrator._dispatch({_concurrent_G0: []})
     return _return_value
 
 

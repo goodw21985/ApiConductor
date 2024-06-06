@@ -209,7 +209,8 @@ class Config:
     def __init__(self):
         self.wrap_in_function_def = False
         self.awaitable_functions = {}
-        self.exposed_functions = set([])
+        self.exposed_functions = set([])  # functions from orchestrator class exposed to executed code
+        self.built_ins_module=None # module supplied by server that is exposed in global namespace
         self.module_blacklist = None
         self.log = False
         self.single_function=False  

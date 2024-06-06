@@ -259,7 +259,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         
         if node not in self.critical_nodes: # and not parent_critical:
             if isinstance(node.func, ast.Name):
-                if node.func.id in self.config.exposed_functions:
+                if self.config.exposed_functions and node.func.id in self.config.exposed_functions:
                     function_call = ast.Attribute(
                         value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
                         attr=node.func,
@@ -375,6 +375,8 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         parent_group = self.node_lookup[self.node_stack[-2]].assigned_concurrency_group.name
         self.add_nonlocal(parent_group, call_id)
+        if isinstance(self.node_stack[-2], ast.Expr):
+            return ast.Constant(value=None)
         return self.DoWait(self.MakeLoadName(call_id))
 
     def MakeString(self, string):
@@ -499,7 +501,10 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 self.statement_group = statement_node_lookup.assigned_concurrency_group
                 statement_group_name = self.statement_group.name
             new_statement = self.visit(statement)
-            self.add_concurrency_group_code(statement_group_name, new_statement)
+            if isinstance(new_statement, ast.Expr) and isinstance(new_statement.value, ast.Constant):
+                pass
+            else:
+                self.add_concurrency_group_code(statement_group_name, new_statement)
 
         for group in self.concurrency_groups:
             if group.is_aggregation_group:

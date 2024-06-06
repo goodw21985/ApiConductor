@@ -13,7 +13,7 @@ from unittest.mock import patch
 import io
 
 config = common.Config()
-config.awaitable_functions = {"search_email":[], "search_teams":[], "search_meetings":[], "create_dict":[], "wrap_string":[]}
+config.awaitable_functions = {"search_email":['text','take','sort','reverse'], "search_teams":[], "search_meetings":[], "create_dict":[], "wrap_string":[]}
 config.exposed_functions={'now'}
 config.module_blacklist = None
 
@@ -90,47 +90,33 @@ class TestQRAnalyzerModule(unittest.TestCase):
 ##########################
     def test_critical_if_split(self):
         source_code = """
-a=now(3,4,a=5,b=search_email(3))
-"""
+search_email(take=1, sort='sent', reverse=True)"""
 
         expected = """
-a=now(3,4,a=5,b=search_email(3))
+search_email(take=1, sort='sent', reverse=True)
 
-
-C0 => G0 used by (C1) = search_email(3)
-C1 => G1 used by () = a
+C0 => G0 used by () = search_email(take=1, sort='sent', reverse=True)
 
 G0 <= (C0) : uses 
-G1 <= (C1) : uses G0
 
-G0 = search_email(3)
-G1 = a
-G1: C1 a = now(3, 4, a=5, b=search_email(3))
-G1:  a
-G1: C1 now(3, 4, a=5, b=search_email(3))
-G1: C1 now
-G1: C1 3
-G1: C1 4
-G1: C1 5
-G0: C1 search_email(3)
+G0 = search_email(take=1, sort='sent', reverse=True)
+G0:  search_email(take=1, sort='sent', reverse=True)
 G0: C0 search_email
-G0: C0 3
+G0: C0 1
+G0: C0 \"\"\"sent\"\"\"
+G0: C0 True
 
 import orchestrator
 orchestrator = orchestrator.Orchestrator()
 
 
 def _program(orchestrator):
-    _C0 = _return_value = a = None
+    _C0 = _return_value = None
 
     def _concurrent_G0():
         nonlocal _C0
-        _C0 = orchestrator.search_email(3, _id='_C0')
-
-    def _concurrent_G1():
-        nonlocal _C0, a
-        a = orchestrator.now(3, 4, a=5, b=_C0.Result)
-    orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0']})
+        _C0 = orchestrator.search_email(take=1, sort='sent', reverse=True, _id='_C0')
+    orchestrator._dispatch({_concurrent_G0: []})
     return _return_value
 
 

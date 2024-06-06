@@ -131,6 +131,9 @@ class ApiConductorServer:
         orchestror = orchestrator.Orchestrator(self, conversation_id)
                 
         globals_dict = {'orchestrator': orchestror}
+        if self.config.built_ins_module:
+            globals_dict.update({name: getattr(self.config.built_ins_module, name) for name in dir(self.config.built_ins_module) if not name.startswith('__')})
+
         conversation.globals_dict=globals_dict
         err=await self.execute_with_timeout(conversation.new_code, globals_dict, self.time_out)
         if err != None:

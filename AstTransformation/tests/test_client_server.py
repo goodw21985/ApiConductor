@@ -1,4 +1,5 @@
 import unittest
+import test_built_ins
 import asyncio
 from threading import Thread, Event
 import random
@@ -17,6 +18,7 @@ class AsyncTestCase(unittest.TestCase):
         config.module_blacklist = None
         config.wrap_in_function_def = False
         config.single_function = True
+        config.built_ins_module=test_built_ins
         self.server = language_server.ApiConductorServer(config, None, gport)
         self.server_thread = Thread(target=self.start_server)
         self.server_thread.start()
@@ -104,7 +106,7 @@ class TestClientServerModuleo(AsyncTestCase):
             print("running test")
             src = """
 x = 1
-a = search_email(x)
+a = search_email(sum(x,0))
 if a < 3:
     y = search_email(a + 5)
 else:
