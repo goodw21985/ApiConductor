@@ -42,7 +42,7 @@ class Orchestrator:
     def now(self, date_code):
         timestamp = timelang.parse_date_code(date_code, self.current_local_time)
         utc_timestamp = timelang.convToUtc(timestamp, self.zone)
-        return utc_timestamp.isoformat()
+        return utc_timestamp.isoformat().replace('+00:00', 'Z')
     
     def _create_id(self, orig_symbol, concurrency_group):
         with self.lock:
