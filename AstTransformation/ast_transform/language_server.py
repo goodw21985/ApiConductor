@@ -12,6 +12,7 @@ from ast_transform import rewriter
 from ast_transform import common, orchestrator as orchestrator_module
 import threading
 import logging
+import traceback
 
 
 class Conversation:
@@ -87,7 +88,8 @@ class ApiConductorServer:
             return None
         except Exception as e:
             self.logger.error(f"code execution exception: {e}")
-            return type(e).__name__+": "+str(e)
+            stack_trace = traceback.format_exc()
+            return type(e).__name__+": "+str(e)+ " -- " + stack_trace
         finally:
             completion_event.set()
 

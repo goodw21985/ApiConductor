@@ -2,7 +2,7 @@ import threading
 import time
 import io
 import queue
-import datetime
+from datetime import datetime
 from ast_transform import timelang
 
 class Task:
