@@ -392,11 +392,48 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
                 else:
                     self.critical_nodes_if_groups[critical]=symbol_name
                     
-                
+
+    # Function to check if all statements in the AST are allowed
+    def verify_ast_statements(self, tree):
+        # Dictionary mapping code-like strings to AST node classes
+        code_to_ast_mapping = {
+            'def': ast.FunctionDef,
+            'class': ast.ClassDef,
+            'return': ast.Return,
+            'del': ast.Delete,
+            'for': ast.For,
+            'async for': ast.AsyncFor,
+            'while': ast.While,
+            'if': ast.If,
+            'with': ast.With,
+            'async with': ast.AsyncWith,
+            'raise': ast.Raise,
+            'try': ast.Try,
+            'assert': ast.Assert,
+            'import': ast.Import,
+            'import from': ast.ImportFrom,
+            'global': ast.Global,
+            'nonlocal': ast.Nonlocal,
+            'pass': ast.Pass,
+            'break': ast.Break,
+            'continue': ast.Continue,
+            # Add any other code-like strings and their corresponding AST node classes as needed
+        }
+    
+        # Convert allowed statement names to actual AST node classes
+        allowed_statement_types = {code_to_ast_mapping[name] for name in self.config.statement_whitelist}
+    
+        # Traverse the AST
+        for node in ast.walk(tree):
+            # Check if the node is a statement and if it is allowed
+            if isinstance(node, tuple(code_to_ast_mapping.values())) and type(node) not in allowed_statement_types:
+                raise AttributeError(f"'{type(node)}' is not a whitelisted python statement")
             
 
 def Scan(tree, config, parent=None):
     analyzer = VariablesAnalyzer(config, parent)
+    
     analyzer.visit(tree)
+    analyzer.verify_ast_statements(tree)
     analyzer.post_process()
     return analyzer

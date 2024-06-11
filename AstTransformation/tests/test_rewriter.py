@@ -19,6 +19,7 @@ config.exposed_functions={'now'}
 config.module_blacklist=None
 config.use_async=False
 config.wrap_in_function_def =True
+config.statement_whitelist={'if','for','return', 'pass'}
 
 
 class TestRewriterModule(unittest.TestCase):

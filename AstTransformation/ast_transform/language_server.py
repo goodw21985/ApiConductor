@@ -166,6 +166,9 @@ class ApiConductorServer:
         config.exposed_functions=None
         if "exposed_functions" in data:
             config.exposed_functions=data["exposed_functions"]
+        config.statement_whitelist=None
+        if "statement_whitelist" in data:
+            config.statement_whitelist=data["statement_whitelist"]
         config.wrap_in_function_def =False
         config.single_function=True
         self.ws_config[ws]=config

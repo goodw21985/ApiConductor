@@ -49,7 +49,8 @@ class Program
     {
         var config = new ApiConductorClient.Config
         {
-            ModuleBlacklist = new List<string> { "io", "sockets", "sys" }
+            ModuleBlacklist = new List<string> { "io", "sockets", "sys" },
+            StatementWhiteList = new List<string> { "if", "for", "return","pass" }
         };
 
         string src = @"

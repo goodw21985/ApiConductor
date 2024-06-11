@@ -28,7 +28,9 @@ class Mock():
         config.exposed_function=None
         config.awaitable_functions=self.awaitable_functions
         config.module_blacklist=None
+        config.statement_whitelist=None
         config.wrap_in_function_def =False
+        config.statement_whitelist={'if','for','return', 'pass'}
 
         self.transform = transform.Transform(config).modify_code(target)
         

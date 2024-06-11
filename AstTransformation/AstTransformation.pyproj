@@ -60,7 +60,6 @@
     <Compile Include="server.py" />
     <Compile Include="server_orchestrator.py" />
     <Compile Include="setup.py" />
-    <Compile Include="tests\built_ins.py" />
     <Compile Include="tests\temp.py" />
     <Compile Include="tests\test_client_server.py" />
     <Compile Include="tests\test_dependency_analyzer.py" />

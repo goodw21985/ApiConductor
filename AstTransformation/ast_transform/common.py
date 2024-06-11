@@ -212,6 +212,7 @@ class Config:
         self.exposed_functions = set([])  # functions from orchestrator class exposed to executed code
         self.built_ins_module=None # module supplied by server that is exposed in global namespace
         self.module_blacklist = None
+        self.statement_whitelist=set([])
         self.log = False
         self.single_function=False  
 
