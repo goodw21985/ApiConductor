@@ -67,7 +67,6 @@ def walk(t, pre=""):
 config = common.Config()
 config.awaitable_functions = {"search_email":[], "search_teams":[]}
 config.module_blacklist = None
-config.statement_whitelist={'if','for','return', 'pass', 'class', 'def', 'global', 'nonlocal'}
 
 
 class TestVariablesAnalyzerModule(unittest.TestCase):

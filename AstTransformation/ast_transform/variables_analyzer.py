@@ -395,6 +395,8 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
 
     # Function to check if all statements in the AST are allowed
     def verify_ast_statements(self, tree):
+        if not self.config.statement_whitelist:
+            return
         # Dictionary mapping code-like strings to AST node classes
         code_to_ast_mapping = {
             'def': ast.FunctionDef,
