@@ -30,7 +30,7 @@ class Mock():
         config.module_blacklist=None
         config.statement_whitelist=None
         config.wrap_in_function_def =False
-        config.statement_whitelist={'if','for','return', 'pass'}
+        config.statement_whitelist={'if','for','return', 'pass', 'setcomp','attribute', 'generatorexp','listcomp','lambda','dictcomp'}
 
         self.transform = transform.Transform(config).modify_code(target)
         

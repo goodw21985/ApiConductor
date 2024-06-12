@@ -1,4 +1,5 @@
 import ast
+import sys
 from . import scope_analyzer
 from . import common
 
@@ -423,12 +424,15 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
             'setcomp': ast.SetComp,
             'listcomp': ast.ListComp,
             'dictcomp': ast.DictComp,
-            'generateexp': ast.GeneratorExp,
+            'generatorexp': ast.GeneratorExp,
             'ifexp': ast.IfExp,
             'attribute': ast.Attribute,
             'slice': ast.Slice
         }
-    
+        
+        if sys.version_info >= (3, 10):
+            code_to_ast_mapping['match'] = ast.Match
+            
         # Convert allowed statement names to actual AST node classes
         allowed_statement_types = {code_to_ast_mapping[name] for name in self.config.statement_whitelist if name in code_to_ast_mapping}
     
