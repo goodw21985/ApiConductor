@@ -14,7 +14,7 @@ import io
 config = common.Config()
 config.awaitable_functions = {"search_email":[], "search_teams":[], "search_meetings":[]}
 config.module_blacklist = None
-config.statement_whitelist={'if','for','return', 'pass'}
+config.statement_whitelist={'if','for','return', 'pass', 'subscript'}
 
 
 def walk_groups(analyzer2: dependency_analyzer.DependencyAnalyzer):

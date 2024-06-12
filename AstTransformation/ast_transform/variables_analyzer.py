@@ -419,11 +419,18 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
             'pass': ast.Pass,
             'break': ast.Break,
             'continue': ast.Continue,
-            # Add any other code-like strings and their corresponding AST node classes as needed
+            'lambda': ast.Lambda,
+            'setcomp': ast.SetComp,
+            'listcomp': ast.ListComp,
+            'dictcomp': ast.DictComp,
+            'generateexp': ast.GeneratorExp,
+            'ifexp': ast.IfExp,
+            'attribute': ast.Attribute,
+            'slice': ast.Slice
         }
     
         # Convert allowed statement names to actual AST node classes
-        allowed_statement_types = {code_to_ast_mapping[name] for name in self.config.statement_whitelist}
+        allowed_statement_types = {code_to_ast_mapping[name] for name in self.config.statement_whitelist if name in code_to_ast_mapping}
     
         # Traverse the AST
         for node in ast.walk(tree):
