@@ -1,5 +1,5 @@
 import unittest
-import test_built_ins
+import mock_built_ins
 import asyncio
 from threading import Thread, Event
 import random
@@ -18,7 +18,7 @@ class AsyncTestCase(unittest.TestCase):
         config.module_blacklist = None
         config.wrap_in_function_def = False
         config.single_function = True
-        config.built_ins_module=test_built_ins
+        config.built_ins_module=mock_built_ins
         self.server = language_server.ApiConductorServer(config, None, gport)
         self.server_thread = Thread(target=self.start_server)
         self.server_thread.start()
@@ -116,7 +116,7 @@ return y
             conversation = TestConversation(self.client, src)
             await conversation.task
             result = conversation.return_value
-            self.assertEqual(result, 211)
+            self.assertEqual(result, 214)
             self.client.close()
 
         asyncio.run(run_test())

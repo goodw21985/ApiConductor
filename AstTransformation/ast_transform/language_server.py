@@ -131,12 +131,20 @@ class ApiConductorServer:
         await send1
         self.logger.info(f"generated code: {conversation.new_code}")
 
-        orchestror = orchestrator_module.Orchestrator(self, conversation_id)
+        orchestrator = orchestrator_module.Orchestrator(self, conversation_id)
                 
-        globals_dict = {'orchestrator': orchestror}
+        globals_dict = {'orchestrator': orchestrator}
         if self.config.built_ins_module:
             globals_dict.update({name: getattr(self.config.built_ins_module, name) for name in dir(self.config.built_ins_module) if not name.startswith('__')})
 
+            if hasattr(self.config.built_ins_module, '__setup__'):
+                setup_result = self.config.built_ins_module.__setup__(orchestrator)
+                if setup_result:
+                    globals_dict.update(setup_result)
+            # Update the globals for each function in the globals_dict
+            for name, func in globals_dict.items():
+                if callable(func):
+                    func.__globals__.update(globals_dict)
         conversation.globals_dict=globals_dict
         err=await self.execute_with_timeout(conversation.new_code, globals_dict, self.time_out)
         if err != None:
