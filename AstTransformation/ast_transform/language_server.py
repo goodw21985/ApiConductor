@@ -177,6 +177,9 @@ class ApiConductorServer:
         config.statement_whitelist=None
         if "statement_whitelist" in data:
             config.statement_whitelist=data["statement_whitelist"]
+        config.function_blacklist=None
+        if "function_blacklist" in data:
+            config.function_blacklist=data["function_blacklist"]
         config.wrap_in_function_def =False
         config.single_function=True
         self.ws_config[ws]=config

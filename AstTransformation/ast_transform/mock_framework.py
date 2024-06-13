@@ -29,9 +29,12 @@ class Mock():
         config.awaitable_functions=self.awaitable_functions
         config.module_blacklist=None
         config.statement_whitelist=None
+        config.function_blacklist=None
+        
         config.wrap_in_function_def =False
         config.statement_whitelist={'if','for','return', 'pass', 'setcomp','attribute', 'generatorexp','listcomp','lambda','dictcomp'}
-
+        config.function_blacklist = {'open', 'eval', 'exec', 'compile', '__import__'}
+ 
         self.transform = transform.Transform(config).modify_code(target)
         
         self.build_module()

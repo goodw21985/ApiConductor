@@ -74,12 +74,20 @@ class TestVariablesAnalyzerModule(unittest.TestCase):
     def check(self,source_code,expected, mock_stdout):
         # Test your function here
         tree = ast.parse(source_code)
-
-        analyzer1 = variables_analyzer.Scan(tree, config)
-        print_critical(analyzer1)
-        walk(analyzer1.symbol_table)
-        result = mock_stdout.getvalue().strip()
-        self.assertEqual(result, expected.strip())
+        if not expected:
+            exceptionSeen=False
+            try:
+                analyzer1 = variables_analyzer.Scan(tree, config)
+            except Exception as e:
+                exceptionSeen=True
+            self.assertEqual(exceptionSeen, True)
+                
+        else:
+            analyzer1 = variables_analyzer.Scan(tree, config)
+            print_critical(analyzer1)
+            walk(analyzer1.symbol_table)
+            result = mock_stdout.getvalue().strip()
+            self.assertEqual(result, expected.strip())
 
     def runit(self,source_code):
         tree = ast.parse(source_code)
@@ -118,6 +126,12 @@ t
 | r #6
 search_teams
 | r #7"""
+        self.check(source_code,expected)    
+##############
+    def test_function_blacklist(self):
+        source_code = """
+a=open("file")"""
+        expected = None
         self.check(source_code,expected)        
 ##############
     def test_ifreuse2(self):

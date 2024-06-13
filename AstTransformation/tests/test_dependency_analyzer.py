@@ -36,7 +36,8 @@ config = common.Config()
 config.awaitable_functions = {"search_email":[], "search_teams":[], "search_meetings":[]}
 config.module_blacklist = None
 config.statement_whitelist={'if', 'return','pass'}
-
+config.function_blacklist = {'open', 'eval', 'exec', 'compile', '__import__'}
+ 
 
 class TestDependencyAnalyzerModule(unittest.TestCase):
     def get(self, code):

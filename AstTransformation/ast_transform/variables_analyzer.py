@@ -441,12 +441,20 @@ class VariablesAnalyzer(scope_analyzer.ScopeAnalyzer):
             # Check if the node is a statement and if it is allowed
             if isinstance(node, tuple(code_to_ast_mapping.values())) and type(node) not in allowed_statement_types:
                 raise AttributeError(f"'{type(node)}' is not a whitelisted python statement")
-            
+
+    def verify_ast_functions(self, tree):
+        dangerous_functions = self.config.function_blacklist or {'open', 'eval', 'exec', 'compile', '__import__'}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                if node.func.id in dangerous_functions:
+                    raise AttributeError(f"'{node.func.id}' is a blacklisted function")  
+                   
 
 def Scan(tree, config, parent=None):
     analyzer = VariablesAnalyzer(config, parent)
     
     analyzer.visit(tree)
     analyzer.verify_ast_statements(tree)
+    analyzer.verify_ast_functions(tree)
     analyzer.post_process()
     return analyzer

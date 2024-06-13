@@ -15,7 +15,8 @@ config = common.Config()
 config.awaitable_functions = {"search_email":[], "search_teams":[], "search_meetings":[]}
 config.module_blacklist = None
 config.statement_whitelist={'if','for','return', 'pass', 'subscript'}
-
+config.function_blacklist = {'open', 'eval', 'exec', 'compile', '__import__'}
+ 
 
 def walk_groups(analyzer2: dependency_analyzer.DependencyAnalyzer):
     named = analyzer2.critical_node_names

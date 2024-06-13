@@ -40,7 +40,7 @@ class MyConversation(language_client.Conversation):
 
 if __name__ == '__main__':
     async def main():
-        config = {'module_blacklist':['io'], 'statement_whitelist':['if','for','return', 'pass']}
+        config = {'module_blacklist':['io'], 'statement_whitelist':['if','for','return', 'pass'], 'function_blacklist':}
 
         client = language_client.ApiConductorClient(config, MyConversation)
 

@@ -20,7 +20,8 @@ config.module_blacklist=None
 config.use_async=False
 config.wrap_in_function_def =True
 config.statement_whitelist={'if','for','return', 'pass', 'subscript'}
-
+config.function_blacklist = {'open', 'eval', 'exec', 'compile', '__import__'}
+ 
 
 class TestRewriterModule(unittest.TestCase):
 ############
