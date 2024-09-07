@@ -471,7 +471,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         key_nodes = []
         value_nodes = []
         for key in dict.keys():
-            key_nodes.append(ast.Name(id = key, ctx=ast.Load()))
+            key_nodes.append(ast.Constant(value=key))
             inList=dict[key]
             if len(inList)==0:
                 value_nodes.append(ast.List(elts=[], ctx=ast.Load()))
