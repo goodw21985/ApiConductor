@@ -1,7 +1,6 @@
 import unittest
 
 import ast
-from ast_transform import astor_fork
 
 from ast_transform import rewriter
 from ast_transform import splitter_analyzer
@@ -18,7 +17,7 @@ config.exposed_functions={'now'}
 config.module_blacklist = None
 
 
-
+x={walk_groups: x} # type: ignore
 
 def walk_groups(analyzer2: dependency_analyzer.DependencyAnalyzer):
     named = analyzer2.critical_node_names
@@ -27,7 +26,7 @@ def walk_groups(analyzer2: dependency_analyzer.DependencyAnalyzer):
     for c in crit:
         try:
             gn = analyzer2.critical_node_to_group[c].name
-            code = astor_fork.to_source(c).strip()
+            code = ast.unparse(c).strip()
             nodec = analyzer2.node_lookup[c]
             result = " ".join([named[item] for item in nodec.dependency])
 
@@ -51,7 +50,7 @@ def walk_nodes(analyzer2: dependency_analyzer.DependencyAnalyzer):
     for c in crit:
         try:
             gn = analyzer2.critical_node_to_group[c].name
-            code = astor_fork.to_source(c).strip()
+            code = ast.unparse(c).strip()
             print(gn + " = " + code)
         except Exception:
             pass
@@ -60,7 +59,7 @@ def walk_nodes(analyzer2: dependency_analyzer.DependencyAnalyzer):
         if not nodec.dependency_visited:
             continue
         try:
-            code = astor_fork.to_source(n).strip()
+            code = ast.unparse(n).strip()
             result2 = " ".join([named[item] for item in nodec.dependency])
             print(nodec.assigned_concurrency_group.name + ": " + result2 + " " + code)
         except Exception:
@@ -81,7 +80,7 @@ class TestQRAnalyzerModule(unittest.TestCase):
             walk_groups(analyzer3)
             walk_nodes(analyzer3)
             rewrite= rewriter.Scan(tree, analyzer3)
-            result = astor_fork.to_source(rewrite).strip()
+            result = ast.unparse(rewrite).strip()
             print('')
             print(result)
             result = mock_stdout.getvalue().strip()
@@ -102,13 +101,15 @@ G0 <= (C0) : uses
 G0 = search_email(take=1, sort='sent', reverse=True)
 G0:  search_email(take=1, sort='sent', reverse=True)
 G0: C0 search_email
+G0: C0 take=1
 G0: C0 1
-G0: C0 \"\"\"sent\"\"\"
+G0: C0 sort='sent'
+G0: C0 'sent'
+G0: C0 reverse=True
 G0: C0 True
 
 import orchestrator
 orchestrator = orchestrator.Orchestrator()
-
 
 def _program(orchestrator):
     _C0 = _return_value = None
@@ -118,15 +119,11 @@ def _program(orchestrator):
         _C0 = orchestrator.search_email(take=1, sort='sent', reverse=True, _id='_C0')
     orchestrator._dispatch({_concurrent_G0: []})
     return _return_value
-
-
 orchestrator.Return(_program(orchestrator))"""
 
         result = self.get(source_code)
         print(result)
         self.assertEqual(result, expected.strip())
 ##########################
-
-
 if __name__ == "__main__":
     unittest.main()

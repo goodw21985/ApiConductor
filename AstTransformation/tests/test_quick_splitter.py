@@ -1,7 +1,6 @@
 import unittest
 
 import ast
-from ast_transform import astor_fork
 
 from ast_transform import splitter_analyzer
 from ast_transform import dependency_analyzer
@@ -25,7 +24,7 @@ def walk_groups(analyzer2: dependency_analyzer.DependencyAnalyzer):
     for c in crit:
         try:
             gn = analyzer2.critical_node_to_group[c].name
-            code = astor_fork.to_source(c).strip()
+            code = ast.unparse(c).strip()
             nodec = analyzer2.node_lookup[c]
             result = " ".join([named[item] for item in nodec.dependency])
 
@@ -59,7 +58,7 @@ def walk_nodes(analyzer2: dependency_analyzer.DependencyAnalyzer):
     for c in crit:
         try:
             gn = analyzer2.critical_node_to_group[c].name
-            code = astor_fork.to_source(c).strip()
+            code = ast.unparse(c).strip()
             print(gn + " = " + code)
         except Exception:
             pass
@@ -68,7 +67,7 @@ def walk_nodes(analyzer2: dependency_analyzer.DependencyAnalyzer):
         if not nodec.dependency_visited:
             continue
         try:
-            code = astor_fork.to_source(n).strip()
+            code = ast.unparse(n).strip()
             result2 = " ".join([named[item] for item in nodec.dependency])
             print(nodec.assigned_concurrency_group.name + ": " + result2 + " " + code)
         except Exception:
@@ -134,8 +133,9 @@ G1: C1 C2 C3 n = search_teams(0)
 G0: C1 C2 C3 search_teams(0)
 G0: C0 search_teams
 G0: C0 0
-G1: C1 C2 C3 (n == 3)
+G1: C1 C2 C3 n == 3
 G1: C1 C2 C3 n
+G1: C1 C2 C3 
 G1: C1 C2 C3 3
 G2: C3 a = search_email(1)
 G1: C3 search_email(1)

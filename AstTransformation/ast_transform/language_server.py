@@ -5,7 +5,6 @@ import json
 import ast
 import time
 import concurrent
-from ast_transform import astor_fork
 from ast_transform import transform
 from ast_transform import scope_analyzer
 from ast_transform import rewriter
@@ -122,7 +121,7 @@ class ApiConductorServer:
         if ws in self.ws_config:
             config = self.ws_config[ws]
         new_tree = transform.Transform(config).modify_code(conversation.code)
-        conversation.new_code = astor_fork.to_source(new_tree)
+        conversation.new_code = ast.unparse(new_tree).strip()
         conversation.compiled_code = compile(new_tree, filename="<ast>", mode="exec")
         request = {
             "conversation_id": conversation_id,

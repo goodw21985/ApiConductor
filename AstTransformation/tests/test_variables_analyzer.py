@@ -2,7 +2,6 @@ from symtable import SymbolTable
 import unittest
 
 import ast
-from ast_transform import astor_fork
 from ast_transform import scope_analyzer
 from ast_transform import common
 from ast_transform import variables_analyzer

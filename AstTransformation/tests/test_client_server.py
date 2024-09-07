@@ -3,7 +3,6 @@ import mock_built_ins
 import asyncio
 from threading import Thread, Event
 import random
-from ast_transform import astor_fork
 from ast_transform import rewriter, splitter_analyzer, dependency_analyzer, variables_analyzer, language_client, language_server, common
 
 gport = random.randint(50000, 60000)

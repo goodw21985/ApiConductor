@@ -1,7 +1,6 @@
 import ast
 from re import S
 
-from ast_transform import astor_fork
 from ast_transform import common
 from . import scope_analyzer
 

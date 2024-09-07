@@ -2,8 +2,6 @@ from tkinter import EXCEPTION
 import unittest
 
 import ast
-from ast_transform import astor_fork
-
 from ast_transform import dependency_analyzer
 from ast_transform import variables_analyzer
 from ast_transform import scope_analyzer
@@ -23,11 +21,11 @@ def walk(analyzer2: dependency_analyzer.DependencyAnalyzer):
         nodec = analyzer2.node_lookup[n]
         try:
             if n in crit:
-                code = astor_fork.to_source(n).strip()
+                code = ast.unparse(n).strip()
                 result = " ".join([named[item] for item in nodec.dependency])
                 result = named[n] + " => " + result
                 print(result + " " + code)
-        except Exception:
+        except Exception as e:
             pass
     pass
 

@@ -1,7 +1,6 @@
 import ast
 import sys
 from multiprocessing import Value
-from ast_transform import astor_fork
 from ast_transform import rewriter
 from ast_transform import common
 
@@ -294,7 +293,7 @@ class VerificationVisitor(ast.NodeVisitor):
 
     def Logprint(self, node, msg):
         # try:
-        s = astor_fork.to_source(node).strip()
+        s = ast.unparse(node).strip()
         if len(s) > 80:
             s = s[0:80] + "..."
         # except Exception as e:

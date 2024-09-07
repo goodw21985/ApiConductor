@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>346a99d3-62ae-4bde-8cd6-681338c2ab9a</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>tests\test_end_to_end.py</StartupFile>
+    <StartupFile>tests\test_dependency_analyzer.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -30,16 +30,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="ast_transform\language_client.py" />
-    <Compile Include="ast_transform\astor_fork\codegen.py" />
-    <Compile Include="ast_transform\astor_fork\code_gen.py" />
-    <Compile Include="ast_transform\astor_fork\file_util.py" />
-    <Compile Include="ast_transform\astor_fork\node_util.py" />
-    <Compile Include="ast_transform\astor_fork\op_util.py" />
-    <Compile Include="ast_transform\astor_fork\rtrip.py" />
-    <Compile Include="ast_transform\astor_fork\source_repr.py" />
-    <Compile Include="ast_transform\astor_fork\string_repr.py" />
-    <Compile Include="ast_transform\astor_fork\tree_walk.py" />
-    <Compile Include="ast_transform\astor_fork\__init__.py" />
     <Compile Include="ast_transform\common.py" />
     <Compile Include="ast_transform\timelang.py" />
     <Compile Include="built_ins.py" />
@@ -78,7 +68,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="ast_transform\" />
-    <Folder Include="ast_transform\astor_fork\" />
     <Folder Include="examples\" />
     <Folder Include="tests\" />
   </ItemGroup>

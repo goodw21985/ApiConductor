@@ -4,7 +4,6 @@ import sys
 import itertools
 
 import ast
-from ast_transform import astor_fork
 from ast_transform import transform
 from ast_transform import scope_analyzer
 from ast_transform import common
@@ -38,7 +37,8 @@ class Mock():
         self.transform = transform.Transform(config).modify_code(target)
         
         self.build_module()
-        self.new_code =astor_fork.to_source(self.module)
+        ast.fix_missing_locations(self.module)
+        self.new_code = ast.unparse(self.module).strip()
         
         self.run_normal()
         self.run_new_code()

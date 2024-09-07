@@ -3,7 +3,6 @@ import sys
 
 from ast_transform import scope_analyzer
 from ast_transform import common
-from ast_transform import astor_fork
 
 # this class rewrites the code by creating a function for
 # each concurrency group, and creating a dag that references 
@@ -262,7 +261,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
                 if self.config.exposed_functions and node.func.id in self.config.exposed_functions:
                     function_call = ast.Attribute(
                         value=ast.Name(id=self.ORCHESTRATOR, ctx=ast.Load()),
-                        attr=node.func,
+                        attr=node.func.id,
                         ctx=ast.Load())
                     args = [self.generic_visit(arg) for arg in node.args]
                     keywords = [self.generic_visit(kw) for kw in node.keywords]
@@ -471,14 +470,16 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         key_nodes = []
         value_nodes = []
         for key in dict.keys():
-            key_nodes.append(ast.Constant(value=key))
+            key_nodes.append(ast.Name(id=key, ctx=ast.Load()))
             inList=dict[key]
             if len(inList)==0:
                 value_nodes.append(ast.List(elts=[], ctx=ast.Load()))
             else:
                 list_elements = [self.MakeString(item) for item in inList]
                 value_nodes.append(ast.List(elts=list_elements, ctx=ast.Load()))
-        return ast.Dict(keys=key_nodes, values=value_nodes)
+        result= ast.Dict(keys=key_nodes, values=value_nodes)
+        code = ast.unparse(result)
+        return result
         
     def visit_Module(self, node):
         self.concurrency_group_code = {}
@@ -575,6 +576,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
         # => def _program(orchestrator):
         arguments = ast.arguments(
+            posonlyargs=[],  
             args=[ast.arg(arg=self.ORCHESTRATOR, annotation=None)],  # List of arguments
             vararg=None,
             kwonlyargs=[],
@@ -812,6 +814,7 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
         
     def MakeFunctionDef(self, name, body, isAsync=False, inargs=None):
         args = inargs or ast.arguments(
+            posonlyargs=[],  
             args=[],           
             vararg=None,       
             kwarg=None,        
@@ -1075,4 +1078,6 @@ class Rewriter(scope_analyzer.ScopeAnalyzer):
 
 def Scan(tree, parent=None):
     analyzer = Rewriter(parent)
-    return analyzer.visit(tree)
+    result = analyzer.visit(tree)
+    ast.fix_missing_locations(result)
+    return result

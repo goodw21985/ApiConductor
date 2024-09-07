@@ -5,7 +5,6 @@ from ast_transform import dependency_analyzer
 from ast_transform import variables_analyzer
 from ast_transform import scope_analyzer
 from ast_transform import code_verification
-from . import astor_fork
 
 class Transform:
     def __init__(self, config):
@@ -16,7 +15,7 @@ class Transform:
             wrapped_code = self.wrap_code_snippet(code)
             tree = ast.parse(wrapped_code)
             tree.body = tree.body[0].body
-            rresult = astor_fork.to_source(tree).strip()
+            rresult = ast.unparse(tree).strip()
             print(rresult)
         else:
             tree = ast.parse(code)

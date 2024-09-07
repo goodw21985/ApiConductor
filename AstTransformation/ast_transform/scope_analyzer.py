@@ -1,5 +1,4 @@
 import ast
-from ast_transform import astor_fork
 from ast_transform import common
 
 
@@ -414,7 +413,7 @@ class ScopeAnalyzer(ast.NodeTransformer):
 
     def Logprint(self, node, msg):
         # try:
-        s = astor_fork.to_source(node).strip()
+        s = ast.unparse(node).strip()
         if len(s) > 40:
             s = s[0:40] + "..."
         # except Exception as e:

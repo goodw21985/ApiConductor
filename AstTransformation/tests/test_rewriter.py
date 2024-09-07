@@ -1,7 +1,6 @@
 import unittest
 
 import ast
-from ast_transform import astor_fork
 
 from ast_transform import rewriter
 from ast_transform import splitter_analyzer
@@ -61,7 +60,6 @@ return n
 import orchestrator
 orchestrator = orchestrator.Orchestrator()
 
-
 def _program(orchestrator):
     _C0 = _return_value = n = None
 
@@ -73,10 +71,7 @@ def _program(orchestrator):
         _return_value = n
     orchestrator._dispatch({_concurrent_G0: []})
     return _return_value
-
-
-orchestrator.Return(_program(orchestrator))
-"""
+orchestrator.Return(_program(orchestrator))"""
         config.wrap_in_function_def =False
 
         self.check(source_code, None, expected)
@@ -92,7 +87,6 @@ return wrap_string(result_dict)
         expected = """
 import orchestrator
 orchestrator = orchestrator.Orchestrator()
-
 
 def _program(orchestrator):
     _1 = _2 = _C0 = _C1 = _return_value = inputs = result_dict = None
@@ -111,8 +105,6 @@ def _program(orchestrator):
         _return_value = orchestrator._wait(orchestrator.wrap_string(result_dict, _id='_C1'), '_C1')
     orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0']})
     return _return_value
-
-
 orchestrator.Return(_program(orchestrator))"""
 
         config.wrap_in_function_def =False
@@ -128,7 +120,6 @@ a=now(3,4,a=5,b=search_email(3))
 import orchestrator
 orchestrator = orchestrator.Orchestrator()
 
-
 def _program(orchestrator):
     _C0 = _return_value = a = None
 
@@ -141,8 +132,6 @@ def _program(orchestrator):
         a = orchestrator.now(3, 4, a=5, b=_C0.Result)
     orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0']})
     return _return_value
-
-
 orchestrator.Return(_program(orchestrator))"""
 
         config.wrap_in_function_def =False
@@ -156,7 +145,6 @@ search_email(take=1, sort='sent', reverse=True)"""
 import orchestrator
 orchestrator = orchestrator.Orchestrator()
 
-
 def _program(orchestrator):
     _C0 = _return_value = None
 
@@ -165,8 +153,6 @@ def _program(orchestrator):
         _C0 = orchestrator.search_email(take=1, sort='sent', reverse=True, _id='_C0')
     orchestrator._dispatch({_concurrent_G0: []})
     return _return_value
-
-
 orchestrator.Return(_program(orchestrator))"""
 
         config.wrap_in_function_def =False
@@ -190,7 +176,6 @@ return search_teams(a)
 import orchestrator
 orchestrator = orchestrator.Orchestrator()
 
-
 def _program(orchestrator):
     _C0 = _C1 = _C2 = _C3 = _C4 = _C5 = _return_value = a = m = n = None
 
@@ -210,7 +195,7 @@ def _program(orchestrator):
         m = _C1.Result
         if not n == 3 and m == 3:
             _C3 = orchestrator.search_email(2, _id='_C3')
-        if not n == 3 and not m == 3:
+        if not n == 3 and (not m == 3):
             _C4 = orchestrator.search_email(3, _id='_C4')
 
     def _concurrent_G3():
@@ -231,8 +216,6 @@ def _program(orchestrator):
         orchestrator._complete('G_a')
     orchestrator._dispatch({_concurrent_G0: [], _concurrent_G1: ['_C0'], _concurrent_G2: ['_C0'], _concurrent_G3: ['G_a', '_C0'], _concurrent_G4: ['_C5'], _concurrent_G_a: [['_C2', '_C3', '_C4']]})
     return _return_value
-
-
 orchestrator.Return(_program(orchestrator))"""
 
         config.wrap_in_function_def =False
@@ -248,7 +231,10 @@ orchestrator.Return(_program(orchestrator))"""
         analyzer2 = dependency_analyzer.Scan(tree, analyzer1)
         analyzer3 = splitter_analyzer.Scan(tree, analyzer2)
         rewrite= rewriter.Scan(tree, analyzer3)
-        result = astor_fork.to_source(rewrite).strip()
+        # Call the function to find the 67th node
+
+        x = ast.dump(rewrite, annotate_fields=True, include_attributes=True)
+        result = ast.unparse(rewrite).strip()
         print(result)
         #
         if validate!=None:
@@ -256,6 +242,9 @@ orchestrator.Return(_program(orchestrator))"""
    
         if expected!=None:
             self.assertEqual(result, expected.strip())
+
+
+
 
 if __name__ == '__main__':
     unittest.main()
