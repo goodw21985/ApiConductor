@@ -79,11 +79,11 @@ class ApiConductorServer:
             self.logger.info("Closing the server")
             self.server.close()
         
-    def run_exec(self, code, globals_dict, completion_event):
+    def run_exec(self, compiled_code, globals_dict, completion_event):
         asyncio.set_event_loop(self.loop)
         try:
             self.logger.info(f"exec code started")
-            exec(code, globals_dict)
+            exec(compiled_code, globals_dict)
             self.logger.info(f"exec code complete")
             return None
         except Exception as e:
@@ -94,11 +94,11 @@ class ApiConductorServer:
         finally:
             completion_event.set()
 
-    async def execute_with_timeout(self, code, globals_dict, timeout):
+    async def execute_with_timeout(self, compiled_code, globals_dict, timeout):
             completion_event = threading.Event()    
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 try:
-                    future = self.loop.run_in_executor(executor, self.run_exec, code, globals_dict, completion_event)
+                    future = self.loop.run_in_executor(executor, self.run_exec, compiled_code, globals_dict, completion_event)
                     try:
                         return await asyncio.wait_for(future, timeout)
                     except asyncio.TimeoutError as e:
@@ -123,9 +123,11 @@ class ApiConductorServer:
             config = self.ws_config[ws]
         new_tree = transform.Transform(config).modify_code(conversation.code)
         conversation.new_code = astor_fork.to_source(new_tree)
+        conversation.compiled_code = compile(new_tree, filename="<ast>", mode="exec")
         request = {
             "conversation_id": conversation_id,
             "new_code": conversation.new_code
+            
         }
         send1 =  ws.send(json.dumps(request))
         await send1
@@ -146,7 +148,7 @@ class ApiConductorServer:
                 if callable(func):
                     func.__globals__.update(globals_dict)
         conversation.globals_dict=globals_dict
-        err=await self.execute_with_timeout(conversation.new_code, globals_dict, self.time_out)
+        err=await self.execute_with_timeout(conversation.compiled_code, globals_dict, self.time_out)
         if err != None:
             request = {
                 "conversation_id": conversation_id,
